@@ -1,0 +1,650 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container team-dynamics-view">
+  <div class="card team-dynamics-heading">
+    <div>
+      <h2>Dinâmica da Equipe</h2>
+      <p>Análise dinâmica de equilíbrio elemental, modalidades e compatibilidade.</p>
+    </div>
+    <button class="btn btn-primary" onclick="loadTeamDynamics()">Atualizar</button>
+  </div>
+
+  <figure class="metateca-inline-guide">
+    <img class="metateca-asset" data-asset-name="aspectos_cooperativos.svg" hidden
+      alt="Símbolos de escuta, iniciativa, síntese, cuidado, negociação e revisão">
+    <figcaption>Observe aspectos cooperativos como práticas desenvolvíveis. A visualização não define personalidade, valor ou função permanente.</figcaption>
+  </figure>
+
+  <div id="team-dynamics-state" class="card">Carregando dinâmica da equipe...</div>
+
+  <div id="team-dynamics-content" style="display:none;">
+    <div class="grid">
+      <div class="card team-dynamics-metric-card">
+        <h2>Tamanho da Equipe</h2>
+        <div class="team-dynamics-metric" id="team-dynamics-size">0</div>
+        <p>Membros ativos cadastrados</p>
+      </div>
+
+      <div class="card team-dynamics-metric-card">
+        <h2>Compatibilidade Média</h2>
+        <div class="team-dynamics-metric" id="team-dynamics-avg">0%</div>
+        <p>Média dos pares calculados</p>
+      </div>
+
+      <div class="card team-dynamics-metric-card">
+        <h2>Equilíbrio Elemental</h2>
+        <div class="team-dynamics-metric" id="team-dynamics-element-balance">-</div>
+        <p id="team-dynamics-element-assessment">-</p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Distribuição de Elementos</h2>
+        <div id="team-dynamics-elements"></div>
+      </div>
+
+      <div class="card">
+        <h2>Distribuição de Modalidades</h2>
+        <div id="team-dynamics-modalities"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Matriz de Compatibilidade</h2>
+      <div id="team-dynamics-matrix"></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Top Compatibilidades</h2>
+        <div id="team-dynamics-top-pairs"></div>
+      </div>
+
+      <div class="card">
+        <h2>Pontos de Atenção</h2>
+        <div id="team-dynamics-low-pairs"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recomendações para Otimizar a Equipe</h2>
+      <div id="team-dynamics-recommendations"></div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .team-dynamics-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .team-dynamics-heading p,
+  .team-dynamics-muted,
+  .team-dynamics-bar-label,
+  .team-dynamics-metric-card p {
+    color: var(--text-muted);
+  }
+
+  .team-dynamics-metric {
+    font-size: 2.3rem;
+    font-weight: 800;
+    color: var(--secondary-color);
+    margin: 8px 0;
+  }
+
+  .team-dynamics-bar {
+    margin: 12px 0;
+  }
+
+  .team-dynamics-bar-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  .team-dynamics-track {
+    height: 14px;
+    border-radius: 999px;
+    background: #f0f0f0;
+    overflow: hidden;
+  }
+
+  .team-dynamics-fill {
+    height: 100%;
+    min-width: 2px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  }
+
+  .team-dynamics-matrix-wrap {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+
+  .team-dynamics-matrix-row {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 8px;
+    min-width: max-content;
+  }
+
+  .team-dynamics-cell,
+  .team-dynamics-head,
+  .team-dynamics-label {
+    min-width: 90px;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    font-weight: 700;
+  }
+
+  .team-dynamics-head {
+    background: #f0f0f0;
+    color: var(--text-main);
+  }
+
+  .team-dynamics-label {
+    text-align: left;
+    color: var(--text-main);
+    background: #f9f9f9;
+  }
+
+  .team-dynamics-cell {
+    background: #f0f0f0;
+  }
+
+  .team-dynamics-cell.high { background: var(--success); color: #fff; }
+  .team-dynamics-cell.medium { background: var(--warning); color: #fff; }
+  .team-dynamics-cell.low { background: var(--error); color: #fff; }
+
+  .team-dynamics-pair {
+    background: #f9f9f9;
+    border-left: 4px solid var(--primary-color);
+    border-radius: 5px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+
+  .team-dynamics-pair strong {
+    color: var(--primary-color);
+  }
+
+  .team-dynamics-rec {
+    background: #f9f9f9;
+    border-left: 4px solid var(--primary-color);
+    border-radius: 5px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+
+  .team-dynamics-rec h3 {
+    margin-bottom: 4px;
+    color: var(--text-main);
+  }
+
+  @media (max-width: 700px) {
+    .team-dynamics-heading {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+
+<script>
+  (function() {
+    var elementLabels = { Fire: 'Fogo', Earth: 'Terra', Air: 'Ar', Water: 'Água' };
+    var modalityLabels = { Cardinal: 'Cardinal', Fixed: 'Fixo', Mutable: 'Mutável' };
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function(char) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
+      });
+    }
+
+    function label(map, value) {
+      return map[value] || value || '-';
+    }
+
+    function setText(id, value) {
+      var element = document.getElementById(id);
+      if (element) element.textContent = value == null || value === '' ? '-' : String(value);
+    }
+
+    function showState(message) {
+      var state = document.getElementById('team-dynamics-state');
+      var content = document.getElementById('team-dynamics-content');
+      if (state) {
+        state.style.display = '';
+        state.innerHTML = message;
+      }
+      if (content) content.style.display = 'none';
+    }
+
+    function showContent() {
+      document.getElementById('team-dynamics-state').style.display = 'none';
+      document.getElementById('team-dynamics-content').style.display = '';
+    }
+
+    function getCount(distribution, key) {
+      return Number(distribution && distribution[key]) || 0;
+    }
+
+    function getPercent(distribution, key, count, total) {
+      var explicit = distribution && distribution[key];
+      if (explicit != null && explicit !== '') return Number(explicit) || 0;
+      return total ? (count / total * 100) : 0;
+    }
+
+    function renderDistribution(containerId, distribution, items) {
+      var total = getCount(distribution, 'total');
+      if (!total) {
+        document.getElementById(containerId).innerHTML = '<p class="team-dynamics-muted">Sem dados suficientes.</p>';
+        return;
+      }
+
+      document.getElementById(containerId).innerHTML = items.map(function(item) {
+        var count = getCount(distribution, item.key);
+        var percent = getPercent(distribution, item.percentKey, count, total);
+        return '<div class="team-dynamics-bar">' +
+          '<div class="team-dynamics-bar-top"><span>' + escapeHtml(item.label) + '</span><span>' + count + ' (' + percent.toFixed(1) + '%)</span></div>' +
+          '<div class="team-dynamics-track"><div class="team-dynamics-fill" style="width:' + Math.max(percent, 2) + '%;"></div></div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function scoreClass(score) {
+      var numeric = Number(score) || 0;
+      if (numeric >= 80) return 'high';
+      if (numeric >= 60) return 'medium';
+      return 'low';
+    }
+
+    function collectMemberNames(members, pairs) {
+      var names = [];
+      if (Array.isArray(members)) {
+        members.forEach(function(member) {
+          if (member && member.name && names.indexOf(member.name) < 0) names.push(member.name);
+        });
+      }
+      if (!names.length && Array.isArray(pairs)) {
+        pairs.forEach(function(pair) {
+          if (pair.member1 && names.indexOf(pair.member1) < 0) names.push(pair.member1);
+          if (pair.member2 && names.indexOf(pair.member2) < 0) names.push(pair.member2);
+        });
+      }
+      return names;
+    }
+
+    function shortName(name) {
+      return String(name || '-').split(' ')[0];
+    }
+
+    function renderMatrix(names, pairs) {
+      if (!names.length) {
+        document.getElementById('team-dynamics-matrix').innerHTML = '<p class="team-dynamics-muted">Cadastre membros para gerar a matriz.</p>';
+        return;
+      }
+
+      if (names.length === 1) {
+        document.getElementById('team-dynamics-matrix').innerHTML = '<p class="team-dynamics-muted">Adicione pelo menos dois membros para calcular compatibilidade.</p>';
+        return;
+      }
+
+      var pairMap = {};
+      (pairs || []).forEach(function(pair) {
+        var key1 = pair.member1 + '|' + pair.member2;
+        var key2 = pair.member2 + '|' + pair.member1;
+        pairMap[key1] = pair.compatibility;
+        pairMap[key2] = pair.compatibility;
+      });
+
+      var columns = '140px repeat(' + names.length + ', minmax(90px, 1fr))';
+      var html = '<div class="team-dynamics-matrix-wrap">';
+      html += '<div class="team-dynamics-matrix-row" style="grid-template-columns:' + columns + ';">';
+      html += '<div class="team-dynamics-head">Membro</div>';
+      names.forEach(function(name) {
+        html += '<div class="team-dynamics-head">' + escapeHtml(shortName(name)) + '</div>';
+      });
+      html += '</div>';
+
+      names.forEach(function(rowName) {
+        html += '<div class="team-dynamics-matrix-row" style="grid-template-columns:' + columns + ';">';
+        html += '<div class="team-dynamics-label">' + escapeHtml(shortName(rowName)) + '</div>';
+        names.forEach(function(colName) {
+          if (rowName === colName) {
+            html += '<div class="team-dynamics-cell">-</div>';
+            return;
+          }
+          var score = pairMap[rowName + '|' + colName];
+          html += '<div class="team-dynamics-cell ' + scoreClass(score) + '">' + escapeHtml(score == null ? '-' : score + '%') + '</div>';
+        });
+        html += '</div>';
+      });
+      html += '</div>';
+      document.getElementById('team-dynamics-matrix').innerHTML = html;
+    }
+
+    function renderPairs(containerId, pairs, emptyText) {
+      if (!Array.isArray(pairs) || !pairs.length) {
+        document.getElementById(containerId).innerHTML = '<p class="team-dynamics-muted">' + escapeHtml(emptyText) + '</p>';
+        return;
+      }
+
+      document.getElementById(containerId).innerHTML = pairs.map(function(pair) {
+        return '<div class="team-dynamics-pair">' +
+          '<p><strong>' + escapeHtml(pair.member1 || '-') + ' + ' + escapeHtml(pair.member2 || '-') + '</strong></p>' +
+          '<p>' + escapeHtml(label(elementLabels, pair.element1)) + ' + ' + escapeHtml(label(elementLabels, pair.element2)) + ' · ' + escapeHtml(pair.compatibility || 0) + '%</p>' +
+        '</div>';
+      }).join('');
+    }
+
+    function renderRecommendations(data) {
+      var recommendations = [];
+      if (data.overallAssessment) {
+        recommendations.push({ title: 'Avaliação geral', text: data.overallAssessment });
+      }
+      if (data.elementBalance && data.elementBalance.assessment) {
+        recommendations.push({ title: 'Equilíbrio elemental', text: data.elementBalance.assessment });
+      }
+      if (data.modalityBalance && data.modalityBalance.assessment) {
+        recommendations.push({ title: 'Equilíbrio de modalidades', text: data.modalityBalance.assessment });
+      }
+      if (data.modalityBalance && data.modalityBalance.recommendation) {
+        recommendations.push({ title: 'Próximo foco', text: data.modalityBalance.recommendation });
+      }
+
+      var average = Number(data.compatibility && data.compatibility.averageCompatibility) || 0;
+      if (average && average < 70) {
+        recommendations.push({ title: 'Compatibilidade', text: 'Promova rituais de alinhamento e conversas estruturadas para reduzir atritos entre pares.' });
+      } else if (average) {
+        recommendations.push({ title: 'Compatibilidade', text: 'A compatibilidade média está saudável. Mantenha pares fortes em trabalhos de maior impacto.' });
+      }
+
+      if (!recommendations.length) {
+        document.getElementById('team-dynamics-recommendations').innerHTML = '<p class="team-dynamics-muted">Nenhuma recomendação foi gerada ainda.</p>';
+        return;
+      }
+
+      document.getElementById('team-dynamics-recommendations').innerHTML = recommendations.map(function(item) {
+        return '<div class="team-dynamics-rec"><h3>' + escapeHtml(item.title) + '</h3><p>' + escapeHtml(item.text) + '</p></div>';
+      }).join('');
+    }
+
+    function renderDynamics(data, members) {
+      var compatibility = data.compatibility || {};
+      var pairs = Array.isArray(compatibility.pairs) ? compatibility.pairs : [];
+      var names = collectMemberNames(members, pairs);
+      var elementBalance = data.elementBalance || {};
+
+      setText('team-dynamics-size', data.teamSize || (Array.isArray(members) ? members.length : 0));
+      setText('team-dynamics-avg', String(compatibility.averageCompatibility || 0) + '%');
+      setText('team-dynamics-element-balance', elementBalance.balance != null ? String(elementBalance.balance) + '%' : '-');
+      setText('team-dynamics-element-assessment', elementBalance.assessment || '-');
+
+      renderDistribution('team-dynamics-elements', data.elementDistribution || {}, [
+        { key: 'Fire', percentKey: 'firePercent', label: 'Fogo' },
+        { key: 'Earth', percentKey: 'earthPercent', label: 'Terra' },
+        { key: 'Air', percentKey: 'airPercent', label: 'Ar' },
+        { key: 'Water', percentKey: 'waterPercent', label: 'Água' }
+      ]);
+
+      renderDistribution('team-dynamics-modalities', data.modalityDistribution || {}, [
+        { key: 'Cardinal', percentKey: 'cardinalPercent', label: 'Cardinal' },
+        { key: 'Fixed', percentKey: 'fixedPercent', label: 'Fixo' },
+        { key: 'Mutable', percentKey: 'mutablePercent', label: 'Mutável' }
+      ]);
+
+      renderMatrix(names, pairs);
+      renderPairs('team-dynamics-top-pairs', pairs.slice(0, 5), 'Nenhum par calculado ainda.');
+      var lowPairs = pairs.filter(function(pair) { return Number(pair.compatibility) < 70; }).sort(function(a, b) { return Number(a.compatibility) - Number(b.compatibility); }).slice(0, 5);
+      renderPairs('team-dynamics-low-pairs', lowPairs, 'Nenhum ponto crítico de compatibilidade foi detectado.');
+      renderRecommendations(data);
+      showContent();
+    }
+
+    window.loadTeamDynamics = async function() {
+      if (!window.Utils || typeof Utils.callServer !== 'function') {
+        showState('<p>Utilitários do aplicativo indisponíveis.</p>');
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        showState('<p>Carregando dinâmica da equipe...</p>');
+        var results = await Promise.all([
+          Utils.callServer('getTeamDynamics').catch(function(error) { return { success: false, error: error && error.message ? error.message : 'Erro ao carregar dinâmica.' }; }),
+          Utils.callServer('getTeamMembers').catch(function() { return null; })
+        ]);
+        var dynamicsResult = results[0];
+        var membersResult = results[1];
+        var members = membersResult && membersResult.success && Array.isArray(membersResult.data) ? membersResult.data : [];
+
+        if (!dynamicsResult || !dynamicsResult.success || !dynamicsResult.data) {
+          var message = (dynamicsResult && (dynamicsResult.error || dynamicsResult.message)) || 'Não foi possível gerar a dinâmica da equipe.';
+          showState('<h2>Sem análise disponível</h2><p>' + escapeHtml(message) + '</p><button class="btn btn-primary" onclick="loadPage(\'TeamMembers\')">Ver equipe</button>');
+          return;
+        }
+
+        renderDynamics(dynamicsResult.data, members);
+      } catch (error) {
+        console.error('Erro ao carregar dinâmica:', error);
+        showState('<h2>Erro ao carregar dinâmica</h2><p>Tente atualizar a página ou conferir os membros cadastrados.</p>');
+      } finally {
+        Utils.hideLoading();
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', loadTeamDynamics);
+  })();
+</script>
+
+
+

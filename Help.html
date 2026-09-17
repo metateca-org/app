@@ -1,0 +1,354 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container help-view">
+  <div class="card help-heading">
+    <div>
+      <h2>Central de Ajuda</h2>
+      <p>Guia rápido, perguntas frequentes e dicas de uso.</p>
+    </div>
+    <button class="btn btn-primary" type="button" onclick="loadPage('AddMember')">Adicionar Membro</button>
+  </div>
+
+  <div class="card help-section">
+    <h3>Começando</h3>
+    <div class="alert alert-info">
+      <strong>ℹ️ Bem-vindo!</strong> Este guia ajuda você a começar com o Metateca.
+    </div>
+    <div class="step-list">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h4>Adicionar Membros da Equipe</h4>
+          <p>Vá em <a href="#" onclick="loadPage('TeamMembers');return false;">Equipe</a> e clique em "Adicionar Membro" para preencher os dados pessoais e de nascimento.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h4>Visualizar Perfis</h4>
+          <p>Clique em "Perfil" de um membro para ver signo, elemento, modalidade e perfil de produtividade.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h4>Analisar Dinâmica</h4>
+          <p>Acesse <a href="#" onclick="loadPage('TeamDynamics');return false;">Dinâmica da Equipe</a> para ver compatibilidade, distribuição de elementos e recomendações.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <h4>Gerar Relatórios</h4>
+          <p>Use a seção <a href="#" onclick="loadPage('Reports');return false;">Relatórios</a> para um resumo dos principais resultados da equipe.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card help-section">
+    <h3>Perguntas Frequentes</h3>
+    <div class="faq-item">
+      <h3><span class="faq-toggle">▼</span> Como adicionar um novo membro?</h3>
+      <p>Clique em "Adicionar Membro". Preencha nome, e-mail, data, hora e local de nascimento (com latitude e longitude). O sistema calcula automaticamente o signo solar e o perfil de produtividade.</p>
+    </div>
+    <div class="faq-item">
+      <h3><span class="faq-toggle">▼</span> O que significa compatibilidade?</h3>
+      <p>Mede o quão bem dois membros tendem a trabalhar juntos com base nos elementos astrológicos. Acima de 80% é considerado excelente para trabalho em equipe.</p>
+    </div>
+    <div class="faq-item">
+      <h3><span class="faq-toggle">▼</span> Como interpretar os elementos?</h3>
+      <p>Fogo (dinâmico, criativo) · Terra (prático, estável) · Ar (comunicativo, intelectual) · Água (empático, intuitivo). Cada elemento tem forças e desafios próprios.</p>
+    </div>
+    <div class="faq-item">
+      <h3><span class="faq-toggle">▼</span> De onde vêm os dados das telas?</h3>
+      <p>Tudo é calculado a partir dos membros cadastrados. Se as telas estiverem vazias, cadastre membros primeiro em "Adicionar Membro".</p>
+    </div>
+  </div>
+
+  <div class="card help-section">
+    <h3>Recursos Principais</h3>
+    <div class="feature-grid">
+      <div class="feature-card"><h4><i class="material-icons cdx-mi" aria-hidden="true">bar_chart</i> Dashboard</h4><p>Estatísticas gerais da equipe, distribuição de elementos e compatibilidade média.</p></div>
+      <div class="feature-card"><h4><i class="material-icons cdx-mi" aria-hidden="true">group</i> Equipe</h4><p>Cadastre e visualize membros com signo, elemento e modalidade.</p></div>
+      <div class="feature-card"><h4><i class="material-icons cdx-mi" aria-hidden="true">sync</i> Dinâmica</h4><p>Matriz de compatibilidade e recomendações para otimizar parcerias.</p></div>
+      <div class="feature-card"><h4><i class="material-icons cdx-mi" aria-hidden="true">trending_up</i> Produtividade</h4><p>Papéis ideais, estilo de comunicação e dicas por elemento.</p></div>
+      <div class="feature-card"><h4><i class="material-icons cdx-mi" aria-hidden="true">explore</i> Papéis</h4><p>Sugestões de papéis de projeto a partir do perfil de cada membro.</p></div>
+      <div class="feature-card"><h4><i class="material-icons cdx-mi" aria-hidden="true">description</i> Relatórios</h4><p>Resumo consolidado de dinâmica, papéis e indicadores da equipe.</p></div>
+    </div>
+  </div>
+
+  <div class="card help-section">
+    <h3>Dicas &amp; Truques</h3>
+    <div class="faq-item">
+      <h3><span class="faq-toggle">▼</span> Use a compatibilidade para formar duplas</h3>
+      <p>Forme sub-grupos com compatibilidade alta para melhorar a colaboração e reduzir atritos.</p>
+    </div>
+    <div class="faq-item">
+      <h3><span class="faq-toggle">▼</span> Equilibre os elementos</h3>
+      <p>Mantenha uma distribuição equilibrada de elementos na equipe para máxima diversidade e sinergia.</p>
+    </div>
+    <div class="faq-item">
+      <h3><span class="faq-toggle">▼</span> Personalize a comunicação</h3>
+      <p>Use o estilo de comunicação de cada membro (tela de Produtividade) para adaptar sua abordagem.</p>
+    </div>
+  </div>
+
+  <div class="card help-section">
+    <h3>Suporte</h3>
+    <div class="contact-info">
+      <p><strong><i class="material-icons cdx-mi" aria-hidden="true">mail</i> E-mail:</strong> <a href="mailto:support@astrology-team.com">support@astrology-team.com</a></p>
+      <p><strong><i class="material-icons cdx-mi" aria-hidden="true">chat</i> Chat:</strong> seg–sex, 9h–17h</p>
+      <p><strong><i class="material-icons cdx-mi" aria-hidden="true">public</i> Website:</strong> <a href="https://www.astrology-team.com" target="_blank" rel="noopener">www.astrology-team.com</a></p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .help-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .help-heading p { color: var(--text-muted); }
+  .help-section h3 { color: var(--primary-color); margin-bottom: 12px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
+  .help-view .alert { padding: 14px; border-radius: 6px; margin-bottom: 16px; }
+  .help-view .alert-info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #0c5460; }
+  .help-view .step { display: flex; gap: 15px; margin-bottom: 14px; }
+  .help-view .step-number { background: var(--primary-color); color: #fff; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; }
+  .help-view .step-content h4 { color: var(--text-main); margin-bottom: 4px; }
+  .help-view .step-content p { color: var(--text-muted); }
+  .help-view .step-content a, .help-view .contact-info a { color: var(--primary-color); text-decoration: none; }
+  .help-view .step-content a:hover, .help-view .contact-info a:hover { text-decoration: underline; }
+  .help-view .faq-item { margin-bottom: 12px; padding: 14px; background: #f9f9f9; border-radius: 6px; }
+  .help-view .faq-item h3 { color: var(--text-main); margin: 0; cursor: pointer; display: flex; align-items: center; font-size: 1em; border: none; padding: 0; }
+  .help-view .faq-item h3:hover { color: var(--primary-color); }
+  .help-view .faq-toggle { margin-right: 10px; transition: transform 0.3s; }
+  .help-view .faq-item p { color: var(--text-muted); line-height: 1.6; margin-top: 10px; display: none; }
+  .help-view .faq-item.active p { display: block; }
+  .help-view .faq-item.active .faq-toggle { transform: rotate(180deg); }
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .feature-card { background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid var(--primary-color); }
+  .feature-card h4 { color: var(--primary-color); margin-bottom: 6px; }
+  .feature-card p { color: var(--text-muted); font-size: 0.92em; }
+  .contact-info { background: #f9f9f9; padding: 15px; border-radius: 6px; border-left: 4px solid var(--primary-color); }
+  .contact-info p { color: var(--text-muted); margin-bottom: 8px; }
+</style>
+
+<script>
+  (function() {
+    // FAQ accordion (scoped to this view).
+    document.querySelectorAll('.help-view .faq-item h3').forEach(function(item) {
+      item.addEventListener('click', function() {
+        this.parentElement.classList.toggle('active');
+      });
+    });
+  })();
+</script>
+
+
+

@@ -1,0 +1,255 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container contact-view">
+  <div class="card contact-card">
+    <h2>Contato</h2>
+    <p class="contact-intro">Fale com a equipe do <strong>Metateca</strong>.
+    Responderemos o mais breve possível.</p>
+
+    <div class="contact-grid">
+      <a class="contact-item" href="tel:+5511962201900">
+        <span class="contact-icon"><i class="material-icons cdx-mi" aria-hidden="true">smartphone</i></span>
+        <div>
+          <span class="contact-label">Telefone / WhatsApp</span>
+          <strong>(11) 96220-1900</strong>
+        </div>
+      </a>
+
+      <a class="contact-item" href="mailto:crossdebate@outlook.com">
+        <span class="contact-icon"><i class="material-icons cdx-mi" aria-hidden="true">mail</i></span>
+        <div>
+          <span class="contact-label">E-mail</span>
+          <strong>crossdebate@outlook.com</strong>
+        </div>
+      </a>
+    </div>
+
+    <div class="contact-actions">
+      <a class="btn btn-primary" href="mailto:crossdebate@outlook.com?subject=Contato%20-%20Metateca">Enviar e-mail</a>
+      <button class="btn" type="button" onclick="loadPage('Help')" style="background:#f0f0f0;color:var(--primary-color);">Central de Ajuda</button>
+    </div>
+  </div>
+</section>
+
+<style>
+  .contact-view { max-width: 760px; }
+  .contact-card h2 { color: var(--primary-color); margin-bottom: 8px; }
+  .contact-intro { color: var(--text-muted); margin-bottom: 22px; }
+  .contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  .contact-item {
+    display: flex; align-items: center; gap: 14px;
+    background: #f9f9f9; border-radius: 8px; padding: 16px;
+    text-decoration: none; border-left: 4px solid var(--primary-color);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .contact-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .contact-icon { font-size: 1.8rem; }
+  .contact-label { display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px; }
+  .contact-item strong { color: var(--text-main); font-size: 1.05rem; }
+  .contact-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+</style>
+
+
+

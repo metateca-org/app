@@ -1,0 +1,444 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container add-member-view">
+  <div class="card add-member-heading">
+    <div>
+      <h2>Adicionar Novo Membro</h2>
+      <p>Cadastre um integrante. O signo e o perfil de produtividade são calculados automaticamente.</p>
+    </div>
+    <button class="btn" type="button" onclick="loadPage('TeamMembers')" style="background:#f0f0f0;color:var(--primary-color);">Voltar à Equipe</button>
+  </div>
+
+  <div id="add-member-status" class="card" style="display:none;"></div>
+
+  <form id="add-member-form" class="card" novalidate>
+    <div class="add-member-section">
+      <h3>Informações Pessoais</h3>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="am-name">Nome Completo <span class="req">*</span></label>
+          <input inputmode="text" type="text" id="am-name" name="name" required autocomplete="name">
+        </div>
+        <div class="form-field">
+          <label for="am-email">E-mail <span class="req">*</span></label>
+          <input inputmode="email" type="email" id="am-email" name="email" required autocomplete="email">
+        </div>
+        <div class="form-field">
+          <label for="am-phone">Telefone</label>
+          <input inputmode="tel" type="tel" id="am-phone" name="phone" autocomplete="tel">
+        </div>
+        <div class="form-field">
+          <label for="am-position">Cargo</label>
+          <input inputmode="text" type="text" id="am-position" name="position" placeholder="Ex: Desenvolvedor, Designer" autocomplete="name">
+        </div>
+      </div>
+    </div>
+
+    <div class="add-member-section">
+      <h3>Dados de Nascimento</h3>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="am-birth-date">Data de Nascimento <span class="req">*</span></label>
+          <input type="date" id="am-birth-date" name="birthDate" required>
+        </div>
+        <div class="form-field">
+          <label for="am-birth-time">Hora de Nascimento <span class="req">*</span></label>
+          <input type="time" id="am-birth-time" name="birthTime" required>
+        </div>
+        <div class="form-field form-field-wide">
+          <label for="am-birth-location">Local de Nascimento <span class="req">*</span></label>
+          <input inputmode="text" type="text" id="am-birth-location" name="birthLocation" placeholder="Cidade, País" required autocomplete="name">
+        </div>
+        <div class="form-field">
+          <label for="am-latitude">Latitude <span class="req">*</span></label>
+          <input inputmode="decimal" type="number" id="am-latitude" name="latitude" step="0.0001" placeholder="Ex: -23.5505" required>
+        </div>
+        <div class="form-field">
+          <label for="am-longitude">Longitude <span class="req">*</span></label>
+          <input inputmode="decimal" type="number" id="am-longitude" name="longitude" step="0.0001" placeholder="Ex: -46.6333" required>
+        </div>
+      </div>
+      <p class="add-member-help">Latitude e longitude do local de nascimento (use coordenadas decimais).</p>
+    </div>
+
+    <div class="add-member-section">
+      <h3>Informações Profissionais</h3>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="am-department">Departamento</label>
+          <select id="am-department" name="department">
+            <option value="">Selecione um departamento</option>
+            <option value="tech">Tecnologia</option>
+            <option value="design">Design</option>
+            <option value="marketing">Marketing</option>
+            <option value="sales">Vendas</option>
+            <option value="hr">Recursos Humanos</option>
+            <option value="other">Outro</option>
+          </select>
+        </div>
+        <div class="form-field form-field-wide">
+          <label for="am-bio">Biografia</label>
+          <textarea id="am-bio" name="bio" placeholder="Descreva brevemente o membro..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="add-member-actions">
+      <button type="submit" class="btn btn-primary" id="am-submit">Adicionar Membro</button>
+      <button type="reset" class="btn" style="background:#f0f0f0;color:var(--primary-color);">Limpar</button>
+    </div>
+  </form>
+</section>
+
+<style>
+  .add-member-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .add-member-heading p { color: var(--text-muted); }
+  .add-member-section { margin-bottom: 24px; }
+  .add-member-section h3 { color: var(--primary-color); margin-bottom: 14px; }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .form-field { display: flex; flex-direction: column; }
+  .form-field-wide { grid-column: 1 / -1; }
+  .form-field label { font-weight: 600; margin-bottom: 6px; color: var(--text-main); }
+  .form-field .req { color: var(--error); }
+  .form-field input,
+  .form-field select,
+  .form-field textarea {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1em;
+    font-family: inherit;
+  }
+  .form-field input:focus,
+  .form-field select:focus,
+  .form-field textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  }
+  .form-field textarea { resize: vertical; min-height: 90px; }
+  .add-member-help { color: var(--text-muted); font-size: 0.85em; margin-top: 10px; }
+  .add-member-actions { display: flex; gap: 12px; margin-top: 8px; }
+  .status-success { border-left: 4px solid var(--success); }
+  .status-error { border-left: 4px solid var(--error); }
+  .status-info { border-left: 4px solid var(--primary-color); }
+  @media (max-width: 700px) {
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  (function() {
+    function val(id) {
+      var el = document.getElementById(id);
+      return el ? String(el.value || '').trim() : '';
+    }
+
+    // <input type="time"> yields HH:MM; the backend requires HH:MM:SS.
+    function normalizeTime(t) {
+      if (!t) return '';
+      var parts = String(t).split(':');
+      if (parts.length === 2) return t + ':00';
+      return t;
+    }
+
+    function showStatus(message, type) {
+      var box = document.getElementById('add-member-status');
+      if (!box) return;
+      box.style.display = '';
+      box.className = 'card status-' + (type || 'info');
+      box.innerHTML = message;
+    }
+
+    function collect() {
+      return {
+        name: val('am-name'),
+        email: val('am-email'),
+        phone: val('am-phone'),
+        birthDate: val('am-birth-date'),
+        birthTime: normalizeTime(val('am-birth-time')),
+        birthLocation: val('am-birth-location'),
+        latitude: parseFloat(val('am-latitude')),
+        longitude: parseFloat(val('am-longitude')),
+        position: val('am-position'),
+        department: val('am-department'),
+        bio: val('am-bio')
+      };
+    }
+
+    function clientErrors(data) {
+      var errors = [];
+      if (!data.name) errors.push('Informe o nome completo.');
+      if (!data.email) errors.push('Informe um e-mail válido.');
+      if (!data.birthDate) errors.push('Informe a data de nascimento.');
+      if (!data.birthTime) errors.push('Informe a hora de nascimento.');
+      if (!data.birthLocation) errors.push('Informe o local de nascimento.');
+      if (isNaN(data.latitude)) errors.push('Latitude deve ser um número.');
+      if (isNaN(data.longitude)) errors.push('Longitude deve ser um número.');
+      return errors;
+    }
+
+    async function submitMember(ev) {
+      ev.preventDefault();
+      if (!window.Utils || typeof Utils.callServer !== 'function') {
+        showStatus('Utilitários do aplicativo indisponíveis.', 'error');
+        return;
+      }
+
+      var data = collect();
+      var localErrors = clientErrors(data);
+      if (localErrors.length) {
+        showStatus('<strong>Revise o formulário:</strong><br>• ' + localErrors.join('<br>• '), 'error');
+        return;
+      }
+
+      var submitBtn = document.getElementById('am-submit');
+      try {
+        if (submitBtn) submitBtn.disabled = true;
+        Utils.showLoading();
+        showStatus('Salvando membro...', 'info');
+
+        var result = await Utils.callServer('addTeamMember', [data]);
+
+        if (result && result.success) {
+          showStatus('Membro adicionado com sucesso! Redirecionando para a equipe...', 'success');
+          setTimeout(function() { loadPage('TeamMembers'); }, 900);
+        } else {
+          var msg;
+          if (result && Array.isArray(result.errors) && result.errors.length) {
+            msg = '<strong>Não foi possível salvar:</strong><br>• ' + result.errors.join('<br>• ');
+          } else {
+            msg = (result && (result.error || result.message)) || 'Não foi possível adicionar o membro.';
+          }
+          showStatus(msg, 'error');
+        }
+      } catch (error) {
+        console.error('Erro ao adicionar membro:', error);
+        showStatus('Erro ao comunicar com o servidor: ' + (error && error.message ? error.message : error), 'error');
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+        Utils.hideLoading();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var form = document.getElementById('add-member-form');
+      if (form) form.addEventListener('submit', submitMember);
+    });
+  })();
+</script>
+
+
+

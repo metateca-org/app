@@ -1,0 +1,384 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container analytics-view">
+  <div class="card analytics-heading">
+    <div>
+      <h2>Analytics</h2>
+      <p>Indicadores agregados da equipe, calculados a partir dos membros cadastrados.</p>
+    </div>
+    <button class="btn btn-primary" type="button" onclick="loadAnalytics()">Atualizar</button>
+  </div>
+
+  <div id="analytics-state" class="card">Carregando indicadores...</div>
+
+  <div id="analytics-content" style="display:none;">
+    <div class="grid">
+      <div class="card"><h3>Tamanho da Equipe</h3><div class="analytics-metric" id="an-size">0</div></div>
+      <div class="card"><h3>Com Perfil</h3><div class="analytics-metric" id="an-profiled">0</div></div>
+      <div class="card"><h3>Compatibilidade Média</h3><div class="analytics-metric" id="an-avg">0%</div></div>
+      <div class="card"><h3>Pares Analisados</h3><div class="analytics-metric" id="an-pairs">0</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card"><h3>Distribuição por Elemento</h3><div id="an-elements"></div></div>
+      <div class="card"><h3>Distribuição por Modalidade</h3><div id="an-modalities"></div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card"><h3>Maiores Compatibilidades</h3><div id="an-top"></div></div>
+      <div class="card"><h3>Pontos de Atenção</h3><div id="an-low"></div></div>
+    </div>
+
+    <div class="card"><h3>Avaliação Geral</h3><p id="an-assessment" class="analytics-muted">-</p></div>
+  </div>
+</section>
+
+<style>
+  .analytics-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .analytics-heading p { color: var(--text-muted); }
+  .analytics-metric { font-size: 2.2rem; font-weight: 800; color: var(--secondary-color); margin-top: 8px; }
+  .analytics-muted { color: var(--text-muted); }
+  .analytics-bar { margin: 12px 0; }
+  .analytics-bar-top { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 6px; }
+  .analytics-track { height: 14px; border-radius: 999px; background: #f0f0f0; overflow: hidden; }
+  .analytics-fill { height: 100%; min-width: 2px; border-radius: 999px; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); }
+  .analytics-pair { background: #f9f9f9; border-left: 4px solid var(--primary-color); border-radius: 5px; padding: 10px 12px; margin-bottom: 8px; }
+  .analytics-pair strong { color: var(--primary-color); }
+</style>
+
+<script>
+  (function() {
+    var analyticsRequestVersion = 0;
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function(c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+
+    function getCount(dist, key) { return Number(dist && dist[key]) || 0; }
+    function getPercent(dist, key, count, total) {
+      var explicit = dist && dist[key];
+      if (explicit != null && explicit !== '') return Number(explicit) || 0;
+      return total ? (count / total * 100) : 0;
+    }
+
+    function renderDistribution(containerId, dist, items) {
+      var total = getCount(dist, 'total');
+      if (!total) {
+        document.getElementById(containerId).innerHTML = '<p class="analytics-muted">Sem dados suficientes.</p>';
+        return;
+      }
+      document.getElementById(containerId).innerHTML = items.map(function(it) {
+        var count = getCount(dist, it.key);
+        var pct = getPercent(dist, it.percentKey, count, total);
+        return '<div class="analytics-bar">' +
+          '<div class="analytics-bar-top"><span>' + escapeHtml(it.label) + '</span><span>' + count + ' (' + pct.toFixed(1) + '%)</span></div>' +
+          '<div class="analytics-track"><div class="analytics-fill" style="width:' + Math.max(pct, 2) + '%;"></div></div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function renderPairs(containerId, pairs, empty) {
+      if (!Array.isArray(pairs) || !pairs.length) {
+        document.getElementById(containerId).innerHTML = '<p class="analytics-muted">' + escapeHtml(empty) + '</p>';
+        return;
+      }
+      document.getElementById(containerId).innerHTML = pairs.map(function(p) {
+        return '<div class="analytics-pair"><strong>' + escapeHtml(p.member1 || '-') + ' + ' + escapeHtml(p.member2 || '-') + '</strong> · ' + escapeHtml(p.compatibility || 0) + '%</div>';
+      }).join('');
+    }
+
+    function showState(msg) {
+      document.getElementById('analytics-state').style.display = '';
+      document.getElementById('analytics-state').innerHTML = msg;
+      document.getElementById('analytics-content').style.display = 'none';
+    }
+
+    window.loadAnalytics = async function() {
+      var requestVersion = ++analyticsRequestVersion;
+      if (!window.Utils || typeof Utils.callServer !== 'function') {
+        showState('<p>Utilitários do aplicativo indisponíveis.</p>');
+        return;
+      }
+      try {
+        Utils.showLoading();
+        showState('Carregando indicadores...');
+        var results = await Promise.all([
+          Utils.callServer('getTeamMembers').catch(function() { return null; }),
+          Utils.callServer('getTeamDynamics').catch(function() { return null; })
+        ]);
+        if (requestVersion !== analyticsRequestVersion) return;
+        var membersResult = results[0];
+        var dynamicsResult = results[1];
+        if (!membersResult) {
+          showState('<h2>Conexão indisponível</h2><p>Não foi possível consultar os membros. Tente novamente.</p><button class="btn btn-primary" onclick="loadAnalytics()">Tentar novamente</button>');
+          return;
+        }
+        if (!membersResult.success) {
+          showState('<h2>Não foi possível carregar</h2><p>' + escapeHtml(membersResult.error || membersResult.message || 'A consulta de membros falhou.') + '</p><button class="btn btn-primary" onclick="loadAnalytics()">Tentar novamente</button>');
+          return;
+        }
+        var members = (membersResult && membersResult.success && Array.isArray(membersResult.data)) ? membersResult.data : [];
+
+        if (!members.length) {
+          showState('<h2>Sem dados</h2><p>Cadastre membros para gerar os indicadores.</p><button class="btn btn-primary" onclick="loadPage(\'AddMember\')">Adicionar membro</button>');
+          return;
+        }
+
+        var profiled = members.filter(function(m) { return m && m.productivityProfile; }).length;
+        document.getElementById('an-size').textContent = members.length;
+        document.getElementById('an-profiled').textContent = profiled;
+
+        if (dynamicsResult && dynamicsResult.success && dynamicsResult.data) {
+          var d = dynamicsResult.data;
+          var compat = d.compatibility || {};
+          var pairs = Array.isArray(compat.pairs) ? compat.pairs : [];
+
+          document.getElementById('an-avg').textContent = String(compat.averageCompatibility || 0) + '%';
+          document.getElementById('an-pairs').textContent = compat.pairCount != null ? compat.pairCount : pairs.length;
+          document.getElementById('an-assessment').textContent = d.overallAssessment || '-';
+
+          renderDistribution('an-elements', d.elementDistribution || {}, [
+            { key: 'Fire', percentKey: 'firePercent', label: 'Fogo' },
+            { key: 'Earth', percentKey: 'earthPercent', label: 'Terra' },
+            { key: 'Air', percentKey: 'airPercent', label: 'Ar' },
+            { key: 'Water', percentKey: 'waterPercent', label: 'Água' }
+          ]);
+          renderDistribution('an-modalities', d.modalityDistribution || {}, [
+            { key: 'Cardinal', percentKey: 'cardinalPercent', label: 'Cardinal' },
+            { key: 'Fixed', percentKey: 'fixedPercent', label: 'Fixo' },
+            { key: 'Mutable', percentKey: 'mutablePercent', label: 'Mutável' }
+          ]);
+
+          renderPairs('an-top', pairs.slice(0, 5), 'Nenhum par calculado ainda.');
+          var low = pairs.filter(function(p) { return Number(p.compatibility) < 70; })
+                         .sort(function(a, b) { return Number(a.compatibility) - Number(b.compatibility); })
+                         .slice(0, 5);
+          renderPairs('an-low', low, 'Nenhum ponto crítico de compatibilidade.');
+        } else {
+          document.getElementById('an-assessment').textContent = (dynamicsResult && (dynamicsResult.error || dynamicsResult.message)) || 'Dinâmica indisponível (adicione ao menos 1 membro).';
+          ['an-elements', 'an-modalities', 'an-top', 'an-low'].forEach(function(id) {
+            document.getElementById(id).innerHTML = '<p class="analytics-muted">Sem dados.</p>';
+          });
+        }
+
+        document.getElementById('analytics-state').style.display = 'none';
+        document.getElementById('analytics-content').style.display = '';
+      } catch (error) {
+        if (requestVersion !== analyticsRequestVersion) return;
+        console.error('Erro ao carregar analytics:', error);
+        showState('<h2>Erro</h2><p>Não foi possível carregar os indicadores.</p>');
+      } finally {
+        if (requestVersion === analyticsRequestVersion) Utils.hideLoading();
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', loadAnalytics);
+  })();
+</script>
+
+
+

@@ -1,0 +1,306 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+        .container { max-width: 800px; margin: 40px auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { color: #667eea; font-size: 2.5em; margin-bottom: 10px; }
+        .header p { color: #999; }
+        .version-card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 30px; margin-bottom: 30px; border-left: 5px solid #667eea; }
+        .version-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .version-number { font-size: 1.5em; font-weight: bold; color: #667eea; }
+        .version-date { color: #999; font-size: 0.9em; }
+        .change-section { margin-bottom: 20px; }
+        .change-section h3 { font-size: 1.1em; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .badge { padding: 3px 8px; border-radius: 3px; font-size: 0.75em; color: white; text-transform: uppercase; }
+        .badge-added { background: #51cf66; }
+        .badge-fixed { background: #ff6b6b; }
+        .badge-improved { background: #4dabf7; }
+        .change-list { list-style: none; }
+        .change-list li { margin-bottom: 8px; padding-left: 20px; position: relative; color: #666; font-size: 0.95em; }
+        .change-list li:before { content: '•'; position: absolute; left: 0; color: #667eea; font-weight: bold; }
+
+
+
+
+</style>
+
+<div class="container">
+        <div class="header">
+            <h1>Histórico de Atualizações</h1>
+            <p>Acompanhe as melhorias e novidades do sistema</p>
+        </div>
+
+        <!-- Version 1.2.0 -->
+        <div class="version-card">
+            <div class="version-header">
+                <span class="version-number">v1.2.0</span>
+                <span class="version-date">15 de Junho, 2024</span>
+            </div>
+
+            <div class="change-section">
+                <h3><span class="badge badge-added">Novo</span> Análise de Produtividade Avançada</h3>
+                <ul class="change-list">
+                    <li>Identificação automática de horários de pico por elemento.</li>
+                    <li>Sugestão de papéis de projeto baseada em modalidades.</li>
+                    <li>Gráficos interativos de performance da equipe.</li>
+                </ul>
+            </div>
+
+            <div class="change-section">
+                <h3><span class="badge badge-improved">Melhoria</span> Motor de Cálculo Astrológico</h3>
+                <ul class="change-list">
+                    <li>Maior precisão nos cálculos de casas e aspectos.</li>
+                    <li>Suporte a mais de 500 cidades globais para local de nascimento.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Version 1.1.0 -->
+        <div class="version-card">
+            <div class="version-header">
+                <span class="version-number">v1.1.0</span>
+                <span class="version-date">1 de Junho, 2024</span>
+            </div>
+
+            <div class="change-section">
+                <h3><span class="badge badge-added">Novo</span> Guia de Comunicação</h3>
+                <ul class="change-list">
+                    <li>Dicas personalizadas para cada membro baseadas em seu elemento.</li>
+                    <li>Estratégias de resolução de conflitos por modalidade.</li>
+                </ul>
+            </div>
+
+            <div class="change-section">
+                <h3><span class="badge badge-fixed">Correção</span> Interface Responsiva</h3>
+                <ul class="change-list">
+                    <li>Ajustes de layout para melhor visualização em dispositivos móveis.</li>
+                    <li>Correção de bugs na renderização do Mapa Natal.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Version 1.0.0 -->
+        <div class="version-card">
+            <div class="version-header">
+                <span class="version-number">v1.0.0</span>
+                <span class="version-date">15 de Maio, 2024</span>
+            </div>
+
+            <div class="change-section">
+                <h3>Lançamento Oficial</h3>
+                <ul class="change-list">
+                    <li>Gerenciamento completo de membros da equipe.</li>
+                    <li>Cálculo de perfis astrológicos (Sol, Lua, Ascendente).</li>
+                    <li>Análise de compatibilidade básica.</li>
+                    <li>Geração de relatórios em PDF.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+
+

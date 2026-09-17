@@ -1,0 +1,365 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container profile-view">
+  <div class="card profile-heading">
+    <div>
+      <h2>Meu Perfil</h2>
+      <p id="profile-subtitle">Carregando sua conta...</p>
+    </div>
+    <button class="btn" type="button" onclick="loadPage('Settings')" style="background:#f0f0f0;color:var(--primary-color);">Preferências</button>
+  </div>
+
+  <div class="card profile-account">
+    <div class="profile-avatar" id="profile-avatar"><i class="material-icons cdx-mi" aria-hidden="true">person</i></div>
+    <div class="profile-account-info">
+      <h3 id="profile-account-name">Usuário</h3>
+      <div class="profile-account-email" id="profile-account-email">-</div>
+    </div>
+  </div>
+
+  <div id="profile-member" class="card">Carregando seu cadastro na equipe...</div>
+
+  <div class="card">
+    <h3>Atalhos</h3>
+    <div class="profile-links">
+      <button class="btn btn-primary" type="button" onclick="loadPage('TeamMembers')">Ver Equipe</button>
+      <button class="btn" type="button" onclick="loadPage('Settings')" style="background:#f0f0f0;color:var(--primary-color);">Configurações</button>
+      <button class="btn" type="button" onclick="loadPage('Help')" style="background:#f0f0f0;color:var(--primary-color);">Ajuda</button>
+    </div>
+  </div>
+</section>
+
+<style>
+  .profile-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .profile-heading p { color: var(--text-muted); }
+  .profile-account { display: flex; gap: 20px; align-items: center; }
+  .profile-avatar {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.4rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .profile-account-info h3 { color: var(--text-main); margin-bottom: 4px; }
+  .profile-account-email { color: var(--text-muted); }
+  .profile-member-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .profile-stat { background: #f9f9f9; border-radius: 6px; padding: 12px; }
+  .profile-stat span { display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .profile-stat strong { color: var(--primary-color); }
+  .profile-links, .profile-member-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  .profile-muted { color: var(--text-muted); }
+</style>
+
+<script>
+  (function() {
+    var elementLabels = { Fire: 'Fogo', Earth: 'Terra', Air: 'Ar', Water: 'Água' };
+    var modalityLabels = { Cardinal: 'Cardinal', Fixed: 'Fixo', Mutable: 'Mutável' };
+    var signLabels = {
+      Aries: 'Áries', Taurus: 'Touro', Gemini: 'Gêmeos', Cancer: 'Câncer', Leo: 'Leão', Virgo: 'Virgem',
+      Libra: 'Libra', Scorpio: 'Escorpião', Sagittarius: 'Sagitário', Capricorn: 'Capricórnio', Aquarius: 'Aquário', Pisces: 'Peixes'
+    };
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function(c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+    function label(map, value) { return map[value] || value || '-'; }
+    function setText(id, value) { var el = document.getElementById(id); if (el) el.textContent = value == null || value === '' ? '-' : value; }
+
+    function renderNoMember(email) {
+      var box = document.getElementById('profile-member');
+      if (email) {
+        box.innerHTML = '<h3>Cadastro na equipe</h3>' +
+          '<p class="profile-muted">Não encontramos um membro com o e-mail <strong>' + escapeHtml(email) + '</strong>.</p>' +
+          '<div class="profile-member-actions" style="margin-top:12px;"><button class="btn btn-primary" onclick="loadPage(\'AddMember\')">Adicionar meu cadastro</button></div>';
+      } else {
+        box.innerHTML = '<h3>Cadastro na equipe</h3>' +
+          '<p class="profile-muted">Sua conta não foi identificada automaticamente. Você pode gerenciar os membros da equipe normalmente.</p>' +
+          '<div class="profile-member-actions" style="margin-top:12px;"><button class="btn btn-primary" onclick="loadPage(\'TeamMembers\')">Ver Equipe</button></div>';
+      }
+    }
+
+    function renderMember(profile) {
+      var email = encodeURIComponent(profile.email || '');
+      document.getElementById('profile-member').innerHTML =
+        '<h3>Meu Cadastro na Equipe</h3>' +
+        '<div class="profile-member-stats">' +
+          '<div class="profile-stat"><span>Signo</span><strong>' + escapeHtml(label(signLabels, profile.sunSign)) + '</strong></div>' +
+          '<div class="profile-stat"><span>Elemento</span><strong>' + escapeHtml(label(elementLabels, profile.element)) + '</strong></div>' +
+          '<div class="profile-stat"><span>Modalidade</span><strong>' + escapeHtml(label(modalityLabels, profile.modality)) + '</strong></div>' +
+          '<div class="profile-stat"><span>Idade</span><strong>' + escapeHtml(profile.age ? profile.age + ' anos' : '-') + '</strong></div>' +
+        '</div>' +
+        '<div class="profile-member-actions">' +
+          '<button class="btn btn-primary" onclick="openProfilePage(\'MemberProfile\', \'' + email + '\')">Ver perfil completo</button>' +
+          '<button class="btn" style="background:#f0f0f0;color:var(--primary-color);" onclick="openProfilePage(\'EditMember\', \'' + email + '\')">Editar meu cadastro</button>' +
+        '</div>';
+    }
+
+    window.openProfilePage = function(view, encodedEmail) {
+      var params = new URLSearchParams(window.location.search);
+      params.set('page', 'index');
+      params.set('view', view);
+      params.set('memberId', decodeURIComponent(encodedEmail || ''));
+      window.location.search = params.toString();
+    };
+
+    async function loadProfile() {
+      if (!window.Utils || typeof Utils.callServer !== 'function') {
+        document.getElementById('profile-member').innerHTML = '<p class="profile-muted">Utilitários do aplicativo indisponíveis.</p>';
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        var userResult = await Utils.callServer('getCurrentUser').catch(function() { return null; });
+        var email = (userResult && userResult.success && userResult.data) ? (userResult.data.email || '') : '';
+
+        setText('profile-account-email', email || 'conta não identificada');
+        setText('profile-subtitle', email ? ('Conectado como ' + email) : 'Conta não identificada nesta sessão.');
+
+        if (!email) { renderNoMember(''); return; }
+
+        var profileResult = await Utils.callServer('getMemberProfile', [email]).catch(function() { return null; });
+        if (profileResult && profileResult.success && profileResult.data) {
+          var profile = profileResult.data;
+          setText('profile-account-name', profile.name || email);
+          document.getElementById('profile-avatar').textContent = (String(profile.name || email).trim().charAt(0) || '👤').toUpperCase();
+          renderMember(profile);
+        } else {
+          setText('profile-account-name', email);
+          renderNoMember(email);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar perfil:', error);
+        document.getElementById('profile-member').innerHTML = '<p class="profile-muted">Erro ao carregar seu perfil.</p>';
+      } finally {
+        Utils.hideLoading();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadProfile);
+  })();
+</script>
+
+
+

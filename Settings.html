@@ -1,0 +1,491 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent, #8ab4f8) !important;
+  box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.1) !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container settings-view">
+  <div class="card settings-heading">
+    <div>
+      <h2>Configurações</h2>
+      <p>Preferências da sua conta. As alterações são salvas no servidor.</p>
+    </div>
+    <button class="btn btn-primary" type="button" id="set-save">Salvar Alterações</button>
+  </div>
+
+  <div id="settings-status" class="card" style="display:none;"></div>
+
+  <div id="settings-content" style="display:none;">
+    <div class="card settings-section">
+      <h3>Preferências</h3>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <h4>Idioma</h4>
+          <p>Idioma preferido da interface.</p>
+        </div>
+        <div class="setting-control">
+          <select id="set-language">
+            <option value="pt-BR">Português (Brasil)</option>
+            <option value="en-US">English (US)</option>
+            <option value="es-ES">Español (España)</option>
+            <option value="fr-FR">Français (France)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <h4>Tema</h4>
+          <p>Aparência da interface.</p>
+        </div>
+        <div class="setting-control">
+          <select id="set-theme">
+            <option value="light">Claro</option>
+            <option value="dark">Escuro</option>
+            <option value="auto">Automático</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <h4>Fuso Horário</h4>
+          <p>Usado para datas e horários exibidos.</p>
+        </div>
+        <div class="setting-control">
+          <select id="set-timezone">
+            <option value="America/Sao_Paulo">America/Sao_Paulo (GMT-3)</option>
+            <option value="America/New_York">America/New_York (GMT-5)</option>
+            <option value="Europe/London">Europe/London (GMT+0)</option>
+            <option value="Europe/Paris">Europe/Paris (GMT+1)</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card settings-section">
+      <h3>Notificações</h3>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <h4>Notificações por E-mail</h4>
+          <p>Receber atualizações por e-mail.</p>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch"><input type="checkbox" id="set-emailNotifications"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <h4>Alertas de Compatibilidade</h4>
+          <p>Avisos sobre compatibilidade da equipe.</p>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch"><input type="checkbox" id="set-compatibilityAlerts"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <h4>Alertas de Produtividade</h4>
+          <p>Avisos sobre análises de produtividade.</p>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch"><input type="checkbox" id="set-productivityAlerts"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card settings-section">
+      <h3>Dados &amp; Privacidade</h3>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <h4>Compartilhamento de Dados</h4>
+          <p>Permitir análise anônima de dados.</p>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch"><input type="checkbox" id="set-dataSharing"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card settings-actions">
+      <button class="btn btn-primary" type="button" id="set-save-2">Salvar Alterações</button>
+      <button class="btn" type="button" id="set-reset" style="background:#f0f0f0;color:var(--primary-color);">Restaurar Padrões</button>
+    </div>
+
+    <div class="card settings-note">
+      <p><strong>ℹ️ Observação:</strong> gerenciamento de conta, senha e chaves de API ainda não estão disponíveis nesta versão.</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .settings-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .settings-heading p { color: var(--text-muted); }
+  .settings-section h3 { color: var(--primary-color); margin-bottom: 10px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
+  .setting-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 20px;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .setting-item:last-child { border-bottom: none; }
+  .setting-label h4 { color: var(--text-main); margin-bottom: 4px; }
+  .setting-label p { color: var(--text-muted); font-size: 0.9em; }
+  .setting-control select {
+    padding: 9px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1em;
+    font-family: inherit;
+    min-width: 220px;
+  }
+  .setting-control select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(102,126,234,0.15); }
+  .toggle-switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; cursor: pointer; inset: 0; background-color: #ccc; transition: 0.3s; border-radius: 24px; }
+  .toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; transition: 0.3s; border-radius: 50%; }
+  .toggle-switch input:checked + .toggle-slider { background: var(--primary-color); }
+  .toggle-switch input:checked + .toggle-slider:before { transform: translateX(26px); }
+  .settings-actions { display: flex; gap: 12px; }
+  .settings-note p { color: var(--text-muted); }
+  .status-success { border-left: 4px solid var(--success); }
+  .status-error { border-left: 4px solid var(--error); }
+  .status-info { border-left: 4px solid var(--primary-color); }
+  @media (max-width: 600px) {
+    .setting-item { grid-template-columns: 1fr; }
+    .setting-control select { width: 100%; }
+  }
+</style>
+
+<script>
+  (function() {
+    var DEFAULTS = {
+      language: 'pt-BR',
+      theme: 'light',
+      timezone: 'America/Sao_Paulo',
+      emailNotifications: false,
+      compatibilityAlerts: true,
+      productivityAlerts: false,
+      dataSharing: true
+    };
+
+    function setSelect(id, value) { var el = document.getElementById(id); if (el != null && value != null) el.value = value; }
+    function setCheck(id, value) { var el = document.getElementById(id); if (el) el.checked = !!value; }
+    function getSelect(id) { var el = document.getElementById(id); return el ? el.value : null; }
+    function getCheck(id) { var el = document.getElementById(id); return el ? !!el.checked : false; }
+
+    function showStatus(message, type) {
+      var box = document.getElementById('settings-status');
+      if (!box) return;
+      box.style.display = '';
+      box.className = 'card status-' + (type || 'info');
+      box.innerHTML = message;
+    }
+
+    function applyPrefs(prefs) {
+      var p = Object.assign({}, DEFAULTS, prefs || {});
+      // backwards-compat: older records used `emailUpdates`/`notifications`
+      if (prefs && prefs.emailNotifications == null && prefs.emailUpdates != null) p.emailNotifications = prefs.emailUpdates;
+      setSelect('set-language', p.language);
+      setSelect('set-theme', p.theme);
+      setSelect('set-timezone', p.timezone);
+      setCheck('set-emailNotifications', p.emailNotifications);
+      setCheck('set-compatibilityAlerts', p.compatibilityAlerts);
+      setCheck('set-productivityAlerts', p.productivityAlerts);
+      setCheck('set-dataSharing', p.dataSharing);
+    }
+
+    function collectPrefs() {
+      return {
+        language: getSelect('set-language'),
+        theme: getSelect('set-theme'),
+        timezone: getSelect('set-timezone'),
+        emailNotifications: getCheck('set-emailNotifications'),
+        compatibilityAlerts: getCheck('set-compatibilityAlerts'),
+        productivityAlerts: getCheck('set-productivityAlerts'),
+        dataSharing: getCheck('set-dataSharing')
+      };
+    }
+
+    async function loadSettings() {
+      if (!window.Utils || typeof Utils.callServer !== 'function') {
+        showStatus('Utilitários do aplicativo indisponíveis.', 'error');
+        return;
+      }
+      try {
+        Utils.showLoading();
+        showStatus('Carregando preferências...', 'info');
+        var result = await Utils.callServer('getPreferences');
+        var prefs = (result && result.success && result.data) ? result.data : {};
+        applyPrefs(prefs);
+        document.getElementById('settings-status').style.display = 'none';
+        document.getElementById('settings-content').style.display = '';
+      } catch (error) {
+        console.error('Erro ao carregar preferências:', error);
+        applyPrefs(DEFAULTS);
+        document.getElementById('settings-content').style.display = '';
+        showStatus('Não foi possível carregar as preferências salvas. Exibindo padrões.', 'error');
+      } finally {
+        Utils.hideLoading();
+      }
+    }
+
+    async function saveSettings() {
+      if (!window.Utils) return;
+      var buttons = [document.getElementById('set-save'), document.getElementById('set-save-2')];
+      try {
+        buttons.forEach(function(b) { if (b) b.disabled = true; });
+        Utils.showLoading();
+        showStatus('Salvando preferências...', 'info');
+        var result = await Utils.callServer('updatePreferences', [collectPrefs()]);
+        if (result && result.success) {
+          if (result.data) applyPrefs(result.data);
+          showStatus('Preferências salvas com sucesso.', 'success');
+        } else {
+          showStatus((result && (result.error || result.message)) || 'Não foi possível salvar as preferências.', 'error');
+        }
+      } catch (error) {
+        console.error('Erro ao salvar preferências:', error);
+        showStatus('Erro ao comunicar com o servidor: ' + (error && error.message ? error.message : error), 'error');
+      } finally {
+        buttons.forEach(function(b) { if (b) b.disabled = false; });
+        Utils.hideLoading();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var save1 = document.getElementById('set-save');
+      var save2 = document.getElementById('set-save-2');
+      var reset = document.getElementById('set-reset');
+      if (save1) save1.addEventListener('click', saveSettings);
+      if (save2) save2.addEventListener('click', saveSettings);
+      if (reset) reset.addEventListener('click', function() {
+        applyPrefs(DEFAULTS);
+        showStatus('Padrões restaurados. Clique em "Salvar Alterações" para confirmar.', 'info');
+      });
+      loadSettings();
+    });
+  })();
+</script>
+
+
+

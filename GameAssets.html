@@ -1,0 +1,189 @@
+<style>
+  .metateca-asset[hidden] { display: none !important; }
+  .metateca-asset { max-width: 100%; height: auto; }
+  .metateca-asset-status {
+    margin: .65rem 0 0;
+    color: var(--text-muted, var(--uo-muted, #b2b9c4));
+    font-size: .82rem;
+    line-height: 1.45;
+  }
+  .metateca-login-hero {
+    display: block;
+    width: min(100%, 560px);
+    max-height: 270px;
+    margin: 24px 0 0;
+    object-fit: cover;
+    border: 1px solid rgba(255, 205, 84, .34);
+    border-radius: 18px;
+    box-shadow: 0 22px 52px rgba(3, 9, 25, .38);
+  }
+  .metateca-map-intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, .42fr);
+    gap: 18px;
+    align-items: center;
+    margin-bottom: 18px;
+    padding: 18px;
+    border: 1px solid rgba(117, 218, 202, .3);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(15, 42, 82, .94), rgba(55, 44, 102, .86));
+  }
+  .metateca-map-intro img { width: 100%; max-height: 280px; object-fit: contain; }
+  .metateca-map-intro__copy { color: #edf5ff; line-height: 1.55; }
+  .metateca-map-intro__copy h3 { margin: 0 0 8px; color: #ffd56c; }
+  .metateca-map-intro__copy p { margin: 0; }
+  .metateca-inline-guide {
+    display: grid;
+    grid-template-columns: minmax(150px, .4fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: center;
+    margin: 0 0 16px;
+    padding: 14px;
+    border: 1px solid rgba(148, 163, 184, .24);
+    border-radius: 12px;
+    background: rgba(30, 41, 59, .58);
+  }
+  .metateca-inline-guide img { width: 100%; max-height: 170px; object-fit: contain; }
+  .metateca-inline-guide figcaption { color: var(--text-muted, #b2b9c4); line-height: 1.5; }
+  .metateca-role-kit { max-height: 320px !important; }
+  [data-asset-background-ready="true"] {
+    background-image:
+      linear-gradient(rgba(21, 23, 28, .93), rgba(21, 23, 28, .93)),
+      var(--metateca-card-background) !important;
+    background-position: center !important;
+    background-size: cover !important;
+  }
+  .metateca-agreement-celebration {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+    margin-top: 14px;
+    padding: 14px;
+    border: 1px solid rgba(255, 205, 84, .4);
+    border-radius: 12px;
+    background: rgba(50, 103, 85, .28);
+  }
+  .metateca-agreement-celebration[hidden] { display: none; }
+  .metateca-agreement-celebration img { width: 84px; }
+  .metateca-agreement-celebration strong { display: block; color: #ffd56c; margin-bottom: 4px; }
+  .metateca-agreement-celebration p { margin: 0; line-height: 1.5; }
+  html[data-theme="light"] [data-asset-background-ready="true"] {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, .95), rgba(255, 255, 255, .95)),
+      var(--metateca-card-background) !important;
+  }
+  html[data-theme="light"] .metateca-inline-guide { background: rgba(248, 250, 252, .94); }
+  @media (max-width: 700px) {
+    .metateca-map-intro,
+    .metateca-inline-guide { grid-template-columns: 1fr; }
+    .metateca-login-hero { max-height: 180px; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .metateca-agreement-celebration:not([hidden]) { animation: metateca-reveal .35s ease-out; }
+    @keyframes metateca-reveal { from { opacity: 0; transform: translateY(8px); } }
+  }
+</style>
+<script>
+  window.MetatecaOrgAssets = (function() {
+    var manifest = null;
+    var loading = false;
+
+    function isSafeDriveUrl(value) {
+      try {
+        var url = new URL(value);
+        return url.protocol === 'https:' && url.hostname === 'drive.google.com';
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function setStatus(message) {
+      document.querySelectorAll('[data-asset-status]').forEach(function(node) {
+        node.textContent = message;
+        node.hidden = !message;
+      });
+    }
+
+    function applyImage(node) {
+      var name = node.getAttribute('data-asset-name');
+      var url = manifest && manifest.assets ? manifest.assets[name] : '';
+      if (!isSafeDriveUrl(url)) return;
+      node.src = url;
+      node.hidden = false;
+    }
+
+    function applyBackground(node) {
+      var name = node.getAttribute('data-asset-background');
+      var url = manifest && manifest.assets ? manifest.assets[name] : '';
+      if (!isSafeDriveUrl(url)) return;
+      node.style.setProperty('--metateca-card-background', 'url("' + url.replace(/"/g, '%22') + '")');
+      node.setAttribute('data-asset-background-ready', 'true');
+    }
+
+    function applyNode(node) {
+      if (!node || node.nodeType !== 1) return;
+      if (node.matches('[data-asset-name]:not([data-asset-deferred])')) applyImage(node);
+      if (node.matches('[data-asset-background]')) applyBackground(node);
+      node.querySelectorAll('[data-asset-name]:not([data-asset-deferred])').forEach(applyImage);
+      node.querySelectorAll('[data-asset-background]').forEach(applyBackground);
+    }
+
+    function applyAll(root) {
+      if (!manifest || !manifest.ok) return;
+      if (root === document) {
+        document.querySelectorAll('[data-asset-name]:not([data-asset-deferred])').forEach(applyImage);
+        document.querySelectorAll('[data-asset-background]').forEach(applyBackground);
+      } else {
+        applyNode(root);
+      }
+      setStatus('');
+    }
+
+    function reveal(name) {
+      if (!manifest || !manifest.ok) return false;
+      document.querySelectorAll('[data-asset-name]').forEach(function(node) {
+        if (node.getAttribute('data-asset-name') === name) applyImage(node);
+      });
+      return true;
+    }
+
+    function load() {
+      if (loading || manifest) return;
+      loading = true;
+      if (!window.google || !google.script || !google.script.run) {
+        loading = false;
+        setStatus('Elementos visuais disponíveis somente no webapp publicado.');
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(function(result) {
+          loading = false;
+          manifest = result || { ok: false, assets: {} };
+          if (!manifest.ok) {
+            setStatus('A constelação visual está indisponível; os fluxos de colaboração continuam acessíveis.');
+            return;
+          }
+          applyAll(document);
+          var detail = { project: manifest.project, names: Object.keys(manifest.assets || {}) };
+          window.dispatchEvent(new CustomEvent('metatecaorgassetsready', { detail: detail }));
+          window.dispatchEvent(new CustomEvent('gameassetsready', { detail: detail }));
+        })
+        .withFailureHandler(function() {
+          loading = false;
+          setStatus('A constelação visual está indisponível; os fluxos de colaboração continuam acessíveis.');
+        })
+        .getGameAssetManifest();
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load);
+    else load();
+
+    new MutationObserver(function(records) {
+      if (!manifest || !manifest.ok) return;
+      records.forEach(function(record) { record.addedNodes.forEach(applyNode); });
+    }).observe(document.documentElement, { childList: true, subtree: true });
+
+    return { load: load, reveal: reveal, applyAll: applyAll };
+  })();
+</script>

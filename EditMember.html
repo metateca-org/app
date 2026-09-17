@@ -1,0 +1,449 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container edit-member-view">
+  <div class="card edit-member-heading">
+    <div>
+      <h2>Editar Membro</h2>
+      <p>Atualize os dados. O signo e o perfil de produtividade são recalculados ao salvar.</p>
+    </div>
+    <button class="btn" type="button" id="em-back" style="background:#f0f0f0;color:var(--primary-color);">Voltar</button>
+  </div>
+
+  <div id="edit-member-status" class="card" style="display:none;"></div>
+
+  <form id="edit-member-form" class="card" style="display:none;" novalidate>
+    <div class="edit-member-section">
+      <h3>Informações Pessoais</h3>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="em-name">Nome Completo <span class="req">*</span></label>
+          <input inputmode="text" type="text" id="em-name" required autocomplete="name">
+        </div>
+        <div class="form-field">
+          <label for="em-email">E-mail (identificador)</label>
+          <input inputmode="email" type="email" id="em-email" readonly title="O e-mail identifica o membro e não pode ser alterado aqui." autocomplete="email">
+        </div>
+      </div>
+    </div>
+
+    <div class="edit-member-section">
+      <h3>Dados de Nascimento</h3>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="em-birth-date">Data de Nascimento <span class="req">*</span></label>
+          <input type="date" id="em-birth-date" required>
+        </div>
+        <div class="form-field">
+          <label for="em-birth-time">Hora de Nascimento <span class="req">*</span></label>
+          <input type="time" id="em-birth-time" required>
+        </div>
+        <div class="form-field form-field-wide">
+          <label for="em-birth-location">Local de Nascimento <span class="req">*</span></label>
+          <input inputmode="text" type="text" id="em-birth-location" placeholder="Cidade, País" required autocomplete="name">
+        </div>
+        <div class="form-field">
+          <label for="em-latitude">Latitude <span class="req">*</span></label>
+          <input inputmode="decimal" type="number" id="em-latitude" step="0.0001" required>
+        </div>
+        <div class="form-field">
+          <label for="em-longitude">Longitude <span class="req">*</span></label>
+          <input inputmode="decimal" type="number" id="em-longitude" step="0.0001" required>
+        </div>
+      </div>
+    </div>
+
+    <div class="edit-member-actions">
+      <button type="submit" class="btn btn-primary" id="em-submit">Salvar Alterações</button>
+      <button type="button" class="btn" id="em-cancel" style="background:#f0f0f0;color:var(--primary-color);">Cancelar</button>
+    </div>
+  </form>
+</section>
+
+<style>
+  .edit-member-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .edit-member-heading p { color: var(--text-muted); }
+  .edit-member-section { margin-bottom: 24px; }
+  .edit-member-section h3 { color: var(--primary-color); margin-bottom: 14px; }
+  .edit-member-view .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .edit-member-view .form-field { display: flex; flex-direction: column; }
+  .edit-member-view .form-field-wide { grid-column: 1 / -1; }
+  .edit-member-view .form-field label { font-weight: 600; margin-bottom: 6px; color: var(--text-main); }
+  .edit-member-view .form-field .req { color: var(--error); }
+  .edit-member-view .form-field input {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1em;
+    font-family: inherit;
+  }
+  .edit-member-view .form-field input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15); }
+  .edit-member-view .form-field input[readonly] { background: #f5f5f5; color: var(--text-muted); cursor: not-allowed; }
+  .edit-member-actions { display: flex; gap: 12px; margin-top: 8px; }
+  .status-success { border-left: 4px solid var(--success); }
+  .status-error { border-left: 4px solid var(--error); }
+  .status-info { border-left: 4px solid var(--primary-color); }
+  @media (max-width: 700px) {
+    .edit-member-view .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  (function() {
+    var memberId = '';
+
+    function val(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+    function setVal(id, value) { var el = document.getElementById(id); if (el) el.value = value == null ? '' : value; }
+
+    // <input type="time"> wants HH:MM; the backend stores/expects HH:MM:SS.
+    function toInputTime(t) { return t ? String(t).split(':').slice(0, 2).join(':') : ''; }
+    function normalizeTime(t) {
+      if (!t) return '';
+      var parts = String(t).split(':');
+      return parts.length === 2 ? t + ':00' : t;
+    }
+
+    function showStatus(message, type) {
+      var box = document.getElementById('edit-member-status');
+      if (!box) return;
+      box.style.display = '';
+      box.className = 'card status-' + (type || 'info');
+      box.innerHTML = message;
+    }
+
+    function goToProfile() {
+      var params = new URLSearchParams(window.location.search);
+      params.set('page', 'index');
+      params.set('view', 'MemberProfile');
+      params.set('memberId', memberId || '');
+      window.location.search = params.toString();
+    }
+
+    function fillForm(member) {
+      setVal('em-name', member.name);
+      setVal('em-email', member.email);
+      setVal('em-birth-date', member.birthDate);
+      setVal('em-birth-time', toInputTime(member.birthTime));
+      setVal('em-birth-location', member.birthLocation);
+      setVal('em-latitude', member.latitude);
+      setVal('em-longitude', member.longitude);
+    }
+
+    function collect() {
+      return {
+        name: val('em-name'),
+        email: val('em-email'),                 // locked identity -> upsert matches same record
+        birthDate: val('em-birth-date'),
+        birthTime: normalizeTime(val('em-birth-time')),
+        birthLocation: val('em-birth-location'),
+        latitude: parseFloat(val('em-latitude')),
+        longitude: parseFloat(val('em-longitude'))
+      };
+    }
+
+    function clientErrors(d) {
+      var e = [];
+      if (!d.name) e.push('Informe o nome completo.');
+      if (!d.birthDate) e.push('Informe a data de nascimento.');
+      if (!d.birthTime) e.push('Informe a hora de nascimento.');
+      if (!d.birthLocation) e.push('Informe o local de nascimento.');
+      if (isNaN(d.latitude)) e.push('Latitude deve ser um número.');
+      if (isNaN(d.longitude)) e.push('Longitude deve ser um número.');
+      return e;
+    }
+
+    async function loadMember() {
+      if (!window.Utils || typeof Utils.callServer !== 'function') {
+        showStatus('Utilitários do aplicativo indisponíveis.', 'error');
+        return;
+      }
+
+      var params = new URLSearchParams(window.location.search);
+      memberId = params.get('memberId') || params.get('email') || '';
+      if (!memberId) {
+        showStatus('<h2>Nenhum membro selecionado</h2><p>Abra a edição a partir do perfil ou da lista de equipe.</p><button class="btn btn-primary" onclick="loadPage(\'TeamMembers\')">Ir para Equipe</button>', 'error');
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        showStatus('Carregando dados do membro...', 'info');
+        var result = await Utils.callServer('getTeamMembers');
+        var members = (result && result.success && Array.isArray(result.data)) ? result.data : [];
+        var target = String(memberId).toLowerCase();
+        var member = members.filter(function(m) {
+          return String(m.email || '').toLowerCase() === target || String(m.name || '').toLowerCase() === target;
+        })[0];
+
+        if (!member) {
+          showStatus('<h2>Membro não encontrado</h2><p>Não foi possível localizar o membro selecionado.</p><button class="btn btn-primary" onclick="loadPage(\'TeamMembers\')">Ir para Equipe</button>', 'error');
+          return;
+        }
+
+        memberId = member.email || memberId;
+        fillForm(member);
+        document.getElementById('edit-member-status').style.display = 'none';
+        document.getElementById('edit-member-form').style.display = '';
+      } catch (error) {
+        console.error('Erro ao carregar membro:', error);
+        showStatus('Erro ao carregar o membro: ' + (error && error.message ? error.message : error), 'error');
+      } finally {
+        Utils.hideLoading();
+      }
+    }
+
+    async function saveMember(ev) {
+      ev.preventDefault();
+      var data = collect();
+      var localErrors = clientErrors(data);
+      if (localErrors.length) {
+        showStatus('<strong>Revise o formulário:</strong><br>• ' + localErrors.join('<br>• '), 'error');
+        return;
+      }
+
+      var submitBtn = document.getElementById('em-submit');
+      try {
+        if (submitBtn) submitBtn.disabled = true;
+        Utils.showLoading();
+        showStatus('Salvando alterações...', 'info');
+        // addTeamMember upserts by e-mail: replaces the record and recomputes astrology.
+        var result = await Utils.callServer('addTeamMember', [data]);
+        if (result && result.success) {
+          showStatus('Alterações salvas! Abrindo o perfil...', 'success');
+          setTimeout(goToProfile, 900);
+        } else {
+          var msg = (result && Array.isArray(result.errors) && result.errors.length)
+            ? '<strong>Não foi possível salvar:</strong><br>• ' + result.errors.join('<br>• ')
+            : ((result && (result.error || result.message)) || 'Não foi possível salvar as alterações.');
+          showStatus(msg, 'error');
+        }
+      } catch (error) {
+        console.error('Erro ao salvar membro:', error);
+        showStatus('Erro ao comunicar com o servidor: ' + (error && error.message ? error.message : error), 'error');
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+        Utils.hideLoading();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var form = document.getElementById('edit-member-form');
+      if (form) form.addEventListener('submit', saveMember);
+      var back = document.getElementById('em-back');
+      var cancel = document.getElementById('em-cancel');
+      if (back) back.addEventListener('click', goToProfile);
+      if (cancel) cancel.addEventListener('click', goToProfile);
+      loadMember();
+    });
+  })();
+</script>
+
+
+

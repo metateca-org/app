@@ -1,0 +1,300 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent, #8ab4f8) !important;
+  box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.1) !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<div class="navbar">
+    <div class="nav-left">
+        <button class="menu-toggle" type="button" aria-label="Abrir menu" onclick="toggleSidebar()"><i class="material-icons cdx-mi" aria-hidden="true">menu</i></button>
+        <span class="current-page">Dashboard</span>
+    </div>
+    <div class="nav-right">
+        <div class="search-box">
+            <input inputmode="text" type="text" id="navbar-search" placeholder="Buscar membros..." onkeydown="if(event.key==='Enter'){event.preventDefault();goSearch(this.value);}" autocomplete="name">
+        </div>
+        <span class="nav-username" id="nav-username"></span>
+        <div class="nav-icons">
+            <span class="icon" title="Notificações" role="button" tabindex="0" onclick="loadPage('Notifications')"><i class="material-icons cdx-mi" aria-hidden="true">notifications</i><span class="badge">3</span></span>
+            <span class="icon" title="Perfil" role="button" tabindex="0" onclick="loadPage('Profile')"><i class="material-icons cdx-mi" aria-hidden="true">person</i></span>
+            <span class="icon" title="Sair" role="button" tabindex="0" onclick="logout()"><i class="material-icons cdx-mi" aria-hidden="true">logout</i></span>
+        </div>
+    </div>
+</div>
+
+<style>
+    .navbar {
+        height: 60px;
+        background: white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px;
+        position: fixed;
+        top: 0;
+        right: 0;
+        left: 250px;
+        z-index: 100;
+    }
+    .nav-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    .menu-toggle {
+        background: none;
+        border: none;
+        font-size: 1.2em;
+        cursor: pointer;
+        display: none;
+    }
+    .current-page {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    .nav-right {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    .search-box input {
+        padding: 8px 15px;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        width: 200px;
+        font-size: 0.9em;
+    }
+    .nav-icons {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+    .icon {
+        font-size: 1.2em;
+        cursor: pointer;
+        position: relative;
+    }
+    .badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #ff6b6b;
+        color: white;
+        font-size: 0.6em;
+        padding: 2px 5px;
+        border-radius: 10px;
+    }
+    @media (max-width: 768px) {
+        .navbar { left: 0; }
+        .menu-toggle { display: block; }
+    }
+</style>
+
+
+

@@ -1,0 +1,700 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container member-profile-view">
+  <div class="card member-profile-heading">
+    <div>
+      <h2>Perfil do Membro</h2>
+      <p id="member-profile-subtitle">Carregando dados do membro selecionado.</p>
+    </div>
+    <button class="btn" onclick="loadPage('TeamMembers')">Voltar à Equipe</button>
+  </div>
+
+  <div id="member-profile-state" class="card">Carregando perfil...</div>
+
+  <div id="member-profile-content" style="display:none;">
+    <div class="card member-profile-header">
+      <div class="member-profile-avatar" id="member-profile-avatar">?</div>
+      <div class="member-profile-info">
+        <h1 id="member-profile-name">-</h1>
+        <div class="member-profile-email" id="member-profile-email">-</div>
+        <div class="member-profile-stats">
+          <div class="member-profile-stat">
+            <span class="member-profile-stat-label">Signo Solar</span>
+            <strong id="member-profile-sign">-</strong>
+          </div>
+          <div class="member-profile-stat">
+            <span class="member-profile-stat-label">Elemento</span>
+            <strong id="member-profile-element">-</strong>
+          </div>
+          <div class="member-profile-stat">
+            <span class="member-profile-stat-label">Modalidade</span>
+            <strong id="member-profile-modality">-</strong>
+          </div>
+          <div class="member-profile-stat">
+            <span class="member-profile-stat-label">Idade</span>
+            <strong id="member-profile-age">-</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="member-profile-tabs card">
+      <button class="member-profile-tab active" onclick="switchMemberProfileTab(event, 'member-overview')">Visão Geral</button>
+      <button class="member-profile-tab" onclick="switchMemberProfileTab(event, 'member-astrology')">Astrologia</button>
+      <button class="member-profile-tab" onclick="switchMemberProfileTab(event, 'member-productivity')">Produtividade</button>
+      <button class="member-profile-tab" onclick="switchMemberProfileTab(event, 'member-compatibility')">Compatibilidade</button>
+      <button class="member-profile-tab" onclick="switchMemberProfileTab(event, 'member-communication')">Comunicação</button>
+    </div>
+
+    <div id="member-overview" class="card member-profile-panel"></div>
+    <div id="member-astrology" class="card member-profile-panel hidden"></div>
+    <div id="member-productivity" class="card member-profile-panel hidden"></div>
+    <div id="member-compatibility" class="card member-profile-panel hidden"></div>
+    <div id="member-communication" class="card member-profile-panel hidden"></div>
+
+    <div class="card member-profile-actions">
+      <button class="btn btn-primary" onclick="openCurrentMemberEditor()">Editar Perfil</button>
+      <button class="btn" onclick="openCurrentMemberChart()">Mapa Natal</button>
+      <button class="btn" onclick="loadPage('Reports')">Gerar Relatório</button>
+      <button class="btn" onclick="loadPage('TeamMembers')">Voltar</button>
+    </div>
+  </div>
+</section>
+
+<style>
+  .member-profile-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .member-profile-heading p,
+  .member-profile-email,
+  .member-profile-stat-label,
+  .member-profile-muted {
+    color: var(--text-muted);
+  }
+
+  .member-profile-header {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  .member-profile-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .member-profile-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .member-profile-info h1 {
+    margin: 0 0 6px;
+    color: var(--text-main);
+  }
+
+  .member-profile-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .member-profile-stat,
+  .member-profile-info-item,
+  .member-profile-chip-card {
+    background: #f9f9f9;
+    border-radius: 6px;
+    padding: 14px;
+  }
+
+  .member-profile-stat-label,
+  .member-profile-info-label {
+    display: block;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .member-profile-stat strong,
+  .member-profile-info-value {
+    color: var(--primary-color);
+    font-weight: 700;
+  }
+
+  .member-profile-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 12px;
+  }
+
+  .member-profile-tab {
+    border: 0;
+    background: #f0f0f0;
+    color: var(--text-muted);
+    border-radius: 5px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .member-profile-tab.active {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: #fff;
+  }
+
+  .member-profile-panel.hidden {
+    display: none;
+  }
+
+  .member-profile-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  .member-profile-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .member-profile-tag,
+  .member-profile-score {
+    display: inline-block;
+    background: var(--primary-color);
+    color: #fff;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .member-profile-list {
+    margin: 12px 0 0;
+    padding-left: 20px;
+  }
+
+  .member-profile-list li {
+    margin: 6px 0;
+  }
+
+  .member-profile-score.high { background: var(--success); }
+  .member-profile-score.medium { background: var(--warning); }
+  .member-profile-score.low { background: var(--error); }
+
+  .member-profile-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  @media (max-width: 700px) {
+    .member-profile-heading,
+    .member-profile-header {
+      flex-direction: column;
+    }
+
+    .member-profile-avatar {
+      width: 96px;
+      height: 96px;
+      font-size: 2.4rem;
+    }
+  }
+</style>
+
+<script>
+  (function() {
+    var currentMemberId = '';
+    var elementLabels = { Fire: 'Fogo', Earth: 'Terra', Air: 'Ar', Water: 'Água' };
+    var modalityLabels = { Cardinal: 'Cardinal', Fixed: 'Fixo', Mutable: 'Mutável' };
+    var signLabels = {
+      Aries: 'Áries', Taurus: 'Touro', Gemini: 'Gêmeos', Cancer: 'Câncer', Leo: 'Leão', Virgo: 'Virgem',
+      Libra: 'Libra', Scorpio: 'Escorpião', Sagittarius: 'Sagitário', Capricorn: 'Capricórnio', Aquarius: 'Aquário', Pisces: 'Peixes'
+    };
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function(char) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
+      });
+    }
+
+    function label(map, value) {
+      return map[value] || value || '-';
+    }
+
+    function setText(id, value) {
+      var element = document.getElementById(id);
+      if (element) element.textContent = value || '-';
+    }
+
+    function showState(message) {
+      var state = document.getElementById('member-profile-state');
+      var content = document.getElementById('member-profile-content');
+      if (state) {
+        state.style.display = '';
+        state.innerHTML = message;
+      }
+      if (content) content.style.display = 'none';
+    }
+
+    function showContent() {
+      document.getElementById('member-profile-state').style.display = 'none';
+      document.getElementById('member-profile-content').style.display = '';
+    }
+
+    function infoItem(labelText, value) {
+      return '<div class="member-profile-info-item"><span class="member-profile-info-label">' + escapeHtml(labelText) + '</span><div class="member-profile-info-value">' + escapeHtml(value || '-') + '</div></div>';
+    }
+
+    function tagList(items, emptyText) {
+      if (!Array.isArray(items) || !items.length) {
+        return '<p class="member-profile-muted">' + escapeHtml(emptyText || 'Nenhum dado disponível.') + '</p>';
+      }
+      return '<div class="member-profile-tags">' + items.map(function(item) {
+        return '<span class="member-profile-tag">' + escapeHtml(item) + '</span>';
+      }).join('') + '</div>';
+    }
+
+    function bulletList(items, emptyText) {
+      if (!Array.isArray(items) || !items.length) {
+        return '<p class="member-profile-muted">' + escapeHtml(emptyText || 'Nenhum dado disponível.') + '</p>';
+      }
+      return '<ul class="member-profile-list">' + items.map(function(item) {
+        return '<li>' + escapeHtml(item) + '</li>';
+      }).join('') + '</ul>';
+    }
+
+    function formatDate(value) {
+      if (!value) return '-';
+      if (window.Utils && typeof Utils.formatDate === 'function') return Utils.formatDate(value);
+      return value;
+    }
+
+    function scoreClass(score) {
+      var numeric = Number(score) || 0;
+      if (numeric >= 80) return 'high';
+      if (numeric >= 60) return 'medium';
+      return 'low';
+    }
+
+    function renderHeader(profile) {
+      var name = profile.name || 'Membro sem nome';
+      var initial = name.trim().charAt(0).toUpperCase() || '?';
+      document.getElementById('member-profile-avatar').textContent = initial;
+      setText('member-profile-name', name);
+      setText('member-profile-email', profile.email);
+      setText('member-profile-sign', label(signLabels, profile.sunSign));
+      setText('member-profile-element', label(elementLabels, profile.element));
+      setText('member-profile-modality', label(modalityLabels, profile.modality));
+      setText('member-profile-age', profile.age ? String(profile.age) + ' anos' : '-');
+      setText('member-profile-subtitle', 'Dados carregados para ' + name + '.');
+    }
+
+    function renderOverview(profile) {
+      document.getElementById('member-overview').innerHTML =
+        '<h2>Informações Pessoais</h2>' +
+        '<div class="member-profile-info-grid">' +
+          infoItem('Nome', profile.name) +
+          infoItem('Email', profile.email) +
+          infoItem('Data de nascimento', formatDate(profile.birthDate)) +
+          infoItem('Hora de nascimento', profile.birthTime) +
+          infoItem('Local de nascimento', profile.birthLocation) +
+          infoItem('Dia da semana', profile.dayOfWeek) +
+          infoItem('Entrada na equipe', formatDate(profile.joinedAt)) +
+          infoItem('Atualizado em', formatDate(profile.lastUpdated)) +
+        '</div>';
+    }
+
+    function renderAstrology(profile, productivity) {
+      var traits = [];
+      if (productivity && Array.isArray(productivity.elementTraits)) traits = traits.concat(productivity.elementTraits);
+      if (productivity && Array.isArray(productivity.modalityTraits)) traits = traits.concat(productivity.modalityTraits);
+      traits = traits.filter(function(item, index, arr) { return arr.indexOf(item) === index; });
+
+      document.getElementById('member-astrology').innerHTML =
+        '<h2>Perfil Astrológico</h2>' +
+        '<div class="member-profile-info-grid">' +
+          infoItem('Signo Solar', label(signLabels, profile.sunSign)) +
+          infoItem('Elemento', label(elementLabels, profile.element)) +
+          infoItem('Modalidade', label(modalityLabels, profile.modality)) +
+          infoItem('Produtividade elemental', productivity ? productivity.elementProductivity : '-') +
+          infoItem('Produtividade por modalidade', productivity ? productivity.modalityProductivity : '-') +
+        '</div>' +
+        '<h3 style="margin-top:22px;color:var(--primary-color);">Características</h3>' +
+        tagList(traits, 'Características ainda não calculadas.');
+    }
+
+    function renderProductivity(productivity) {
+      if (!productivity) {
+        document.getElementById('member-productivity').innerHTML = '<h2>Perfil de Produtividade</h2><p class="member-profile-muted">Perfil de produtividade indisponível para este membro.</p>';
+        return;
+      }
+
+      document.getElementById('member-productivity').innerHTML =
+        '<h2>Perfil de Produtividade</h2>' +
+        '<div class="member-profile-info-grid">' +
+          infoItem('Estilo de comunicação', productivity.communicationStyle) +
+          infoItem('Elemento', label(elementLabels, productivity.element)) +
+          infoItem('Modalidade', label(modalityLabels, productivity.modality)) +
+        '</div>' +
+        '<h3 style="margin-top:22px;color:var(--primary-color);">Papéis Sugeridos</h3>' +
+        tagList(productivity.suggestedRoles, 'Nenhum papel sugerido.') +
+        '<div class="member-profile-info-grid" style="margin-top:18px;">' +
+          '<div class="member-profile-chip-card"><h3>Pontos Fortes</h3>' + bulletList(productivity.strengths, 'Sem pontos fortes calculados.') + '</div>' +
+          '<div class="member-profile-chip-card"><h3>Desafios</h3>' + bulletList(productivity.challenges, 'Sem desafios calculados.') + '</div>' +
+          '<div class="member-profile-chip-card"><h3>Dicas de Produtividade</h3>' + bulletList(productivity.productivityTips, 'Sem dicas calculadas.') + '</div>' +
+        '</div>';
+    }
+
+    function renderCompatibility(profile, dynamics) {
+      var pairs = dynamics && dynamics.compatibility && Array.isArray(dynamics.compatibility.pairs) ? dynamics.compatibility.pairs : [];
+      var memberName = profile.name || '';
+      var relatedPairs = pairs.filter(function(pair) {
+        return pair.member1 === memberName || pair.member2 === memberName;
+      });
+
+      if (!relatedPairs.length) {
+        document.getElementById('member-compatibility').innerHTML = '<h2>Compatibilidade</h2><p class="member-profile-muted">Ainda não há pares suficientes para calcular a compatibilidade deste membro.</p>';
+        return;
+      }
+
+      document.getElementById('member-compatibility').innerHTML =
+        '<h2>Compatibilidade com a Equipe</h2>' +
+        '<div class="member-profile-info-grid">' + relatedPairs.map(function(pair) {
+          var other = pair.member1 === memberName ? pair.member2 : pair.member1;
+          var otherElement = pair.member1 === memberName ? pair.element2 : pair.element1;
+          var score = pair.compatibility || 0;
+          return '<div class="member-profile-info-item">' +
+            '<span class="member-profile-info-label">' + escapeHtml(other || '-') + ' (' + escapeHtml(label(elementLabels, otherElement)) + ')</span>' +
+            '<span class="member-profile-score ' + scoreClass(score) + '">' + escapeHtml(score) + '% compatível</span>' +
+          '</div>';
+        }).join('') + '</div>';
+    }
+
+    function renderCommunication(tips) {
+      if (!tips) {
+        document.getElementById('member-communication').innerHTML = '<h2>Comunicação</h2><p class="member-profile-muted">Dicas de comunicação indisponíveis para este membro.</p>';
+        return;
+      }
+
+      var feedback = tips.feedbackPreferences || {};
+      var conflict = tips.conflictStyle || {};
+      document.getElementById('member-communication').innerHTML =
+        '<h2>Dicas de Comunicação</h2>' +
+        '<div class="member-profile-info-grid">' +
+          infoItem('Estilo', tips.communicationStyle) +
+          infoItem('Feedback', feedback.style) +
+          infoItem('Foco do feedback', feedback.focus) +
+          infoItem('Resolução de conflito', conflict.approach) +
+          infoItem('Preferência em conflito', conflict.preference) +
+          infoItem('Dica principal', conflict.tip) +
+        '</div>' +
+        '<div class="member-profile-info-grid" style="margin-top:18px;">' +
+          '<div class="member-profile-chip-card"><h3>Como comunicar</h3>' + bulletList(tips.howToCommunicateWithThem, 'Sem dicas disponíveis.') + '</div>' +
+          '<div class="member-profile-chip-card"><h3>Motivadores</h3>' + bulletList(tips.motivators, 'Sem motivadores disponíveis.') + '</div>' +
+          '<div class="member-profile-chip-card"><h3>Colaboração</h3>' + bulletList(tips.collaborationTips, 'Sem dicas de colaboração.') + '</div>' +
+        '</div>';
+    }
+
+    async function loadMemberProfile() {
+      if (!window.Utils || typeof Utils.callServer !== 'function') {
+        showState('<p>Utilitários do aplicativo indisponíveis.</p>');
+        return;
+      }
+
+      var params = new URLSearchParams(window.location.search);
+      currentMemberId = params.get('memberId') || params.get('email') || '';
+      if (!currentMemberId) {
+        showState('<h2>Selecione um membro</h2><p>Abra um perfil a partir da lista de equipe para carregar os dados corretos.</p><button class="btn btn-primary" onclick="loadPage(\'TeamMembers\')">Ir para Equipe</button>');
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        var profileResult = await Utils.callServer('getMemberProfile', [currentMemberId]);
+        if (!profileResult || !profileResult.success || !profileResult.data) {
+          showState('<h2>Perfil não encontrado</h2><p>' + escapeHtml((profileResult && (profileResult.error || profileResult.message)) || 'Não foi possível carregar este membro.') + '</p>');
+          return;
+        }
+
+        var profile = profileResult.data;
+        var productivityFromProfile = profile.productivityProfile;
+        var productivityPromise = productivityFromProfile ? Promise.resolve({ success: true, data: productivityFromProfile }) : Utils.callServer('calculateProductivityProfile', [profile]).catch(function() { return null; });
+        var tipsPromise = Utils.callServer('getCommunicationTips', [currentMemberId]).catch(function() { return null; });
+        var dynamicsPromise = Utils.callServer('getTeamDynamics').catch(function() { return null; });
+        var extraResults = await Promise.all([productivityPromise, tipsPromise, dynamicsPromise]);
+        var productivityResult = extraResults[0];
+        var tipsResult = extraResults[1];
+        var dynamicsResult = extraResults[2];
+        var productivity = productivityResult && productivityResult.success ? productivityResult.data : null;
+        var tips = tipsResult && tipsResult.success ? tipsResult.data : null;
+        var dynamics = dynamicsResult && dynamicsResult.success ? dynamicsResult.data : null;
+
+        renderHeader(profile);
+        renderOverview(profile);
+        renderAstrology(profile, productivity);
+        renderProductivity(productivity);
+        renderCompatibility(profile, dynamics);
+        renderCommunication(tips);
+        showContent();
+      } catch (error) {
+        console.error('Erro ao carregar perfil:', error);
+        showState('<h2>Erro ao carregar perfil</h2><p>Verifique os dados do membro e tente novamente.</p>');
+      } finally {
+        Utils.hideLoading();
+      }
+    }
+
+    window.switchMemberProfileTab = function(event, tabName) {
+      document.querySelectorAll('.member-profile-panel').forEach(function(panel) {
+        panel.classList.add('hidden');
+      });
+      document.querySelectorAll('.member-profile-tab').forEach(function(button) {
+        button.classList.remove('active');
+      });
+      document.getElementById(tabName).classList.remove('hidden');
+      event.target.classList.add('active');
+    };
+
+    window.openCurrentMemberEditor = function() {
+      var params = new URLSearchParams(window.location.search);
+      params.set('page', 'index');
+      params.set('view', 'EditMember');
+      params.set('memberId', currentMemberId || '');
+      window.location.search = params.toString();
+    };
+
+    window.openCurrentMemberChart = function() {
+      var params = new URLSearchParams(window.location.search);
+      params.set('page', 'index');
+      params.set('view', 'NatalChart');
+      params.set('memberId', currentMemberId || '');
+      window.location.search = params.toString();
+    };
+
+    document.addEventListener('DOMContentLoaded', loadMemberProfile);
+  })();
+</script>
+
+
+

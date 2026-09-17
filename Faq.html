@@ -1,0 +1,314 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+        .container { max-width: 900px; margin: 40px auto; padding: 20px; }
+        .faq-header { text-align: center; margin-bottom: 40px; }
+        .faq-header h1 { color: #667eea; font-size: 2.5em; margin-bottom: 10px; }
+        .faq-header p { color: #999; font-size: 1.1em; }
+        .faq-list { display: flex; flex-direction: column; gap: 15px; }
+        .faq-item { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+        .faq-question { padding: 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s; }
+        .faq-question:hover { background: #f9f9ff; }
+        .faq-question h3 { font-size: 1.1em; color: #333; }
+        .faq-icon { color: #667eea; font-weight: bold; transition: transform 0.3s; }
+        .faq-answer { padding: 0 20px; max-height: 0; overflow: hidden; transition: all 0.3s ease-out; background: #fcfcfc; }
+        .faq-answer p { padding: 20px 0; color: #666; line-height: 1.6; }
+        .faq-item.active .faq-answer { max-height: 300px; border-top: 1px solid #eee; }
+        .faq-item.active .faq-icon { transform: rotate(180deg); }
+        .contact-cta { text-align: center; margin-top: 40px; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .contact-cta h2 { color: #667eea; margin-bottom: 10px; }
+        .btn-contact { display: inline-block; margin-top: 15px; padding: 10px 25px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; font-weight: 600; }
+
+
+
+
+</style>
+
+<div class="container">
+        <div class="faq-header">
+            <h1>Perguntas Frequentes</h1>
+            <p>Tudo o que você precisa saber sobre Metateca</p>
+        </div>
+
+        <div class="faq-list">
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Como o sistema calcula os mapas natais?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Utilizamos algoritmos astronômicos precisos e integrações com APIs especializadas para calcular as posições dos planetas, casas e aspectos baseados na data, hora e local exatos de nascimento fornecidos.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <h3>Como é determinada a compatibilidade entre membros?</h3>
+                <span class="faq-icon">▼</span>
+                <div class="faq-answer">
+                    <p>A compatibilidade é calculada analisando a sinergia entre os elementos (Fogo, Terra, Ar, Água), as modalidades (Cardinal, Fixo, Mutável) e os aspectos principais entre os planetas pessoais dos membros da equipe.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Meus dados de nascimento estão seguros?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Sim. Levamos a privacidade a sério. Seus dados de nascimento são usados exclusivamente para os cálculos astrológicos do sistema e são protegidos por criptografia e medidas de segurança rigorosas.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Posso exportar os relatórios em PDF?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Sim! Todos os relatórios gerados pelo sistema, incluindo análises de equipe e perfis individuais, podem ser exportados em formato PDF para fácil compartilhamento e arquivamento.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>Como as dicas de comunicação podem ajudar minha equipe?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>As dicas são personalizadas para o perfil astrológico de cada membro. Elas ajudam a entender como cada pessoa prefere receber feedback, como lidam com conflitos e qual o melhor estilo de abordagem para cada um.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h3>O sistema funciona para equipes de qualquer tamanho?</h3>
+                    <span class="faq-icon">▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>Sim, o sistema é escalável. No entanto, as análises de dinâmica de equipe são mais detalhadas e eficazes para equipes de até 20 membros para garantir clareza nas visualizações.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="contact-cta">
+            <h2>Ainda tem dúvidas?</h2>
+            <p>Se você não encontrou a resposta que procurava, nossa equipe de suporte está pronta para ajudar.</p>
+            <a href="#" class="btn-contact" onclick="event.preventDefault();var p=new URLSearchParams(location.search);p.set('page','index');p.set('view','Contact');location.search=p.toString();">Entre em Contato</a>
+        </div>
+    </div>
+
+    <script>
+        document.querySelectorAll('.faq-question').forEach(item => {
+            item.addEventListener('click', () => {
+                const faqItem = item.parentElement;
+                faqItem.classList.toggle('active');
+            });
+        });
+    </script>
+
+
+

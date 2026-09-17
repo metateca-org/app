@@ -1,0 +1,556 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container project-roles-view">
+  <div class="card project-roles-heading">
+    <div>
+      <h2>Papéis de Projeto</h2>
+      <p>Recomendações de papéis calculadas a partir dos membros cadastrados.</p>
+    </div>
+    <button class="btn btn-primary" onclick="loadProjectRoles()">Atualizar</button>
+  </div>
+
+  <figure class="metateca-inline-guide">
+    <img class="metateca-asset metateca-role-kit" data-asset-name="kit_papeis_colaborativos.png" hidden
+      alt="Objetos que representam pesquisar, criar, construir, cuidar, comunicar e revisar">
+    <figcaption>Use o kit para experimentar contribuições diferentes. Papéis são combináveis, aprendidos e revisáveis — não rótulos permanentes.</figcaption>
+  </figure>
+
+  <div class="grid" id="project-role-guide"></div>
+
+  <div class="card">
+    <h2>Sugestões de Papéis para Membros</h2>
+    <div id="project-roles-state">Carregando sugestões...</div>
+    <div id="project-roles-members" class="grid" style="display:none;"></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Distribuição por Elemento</h2>
+      <div id="project-roles-elements"></div>
+    </div>
+
+    <div class="card">
+      <h2>Distribuição por Modalidade</h2>
+      <div id="project-roles-modalities"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Recomendações de Composição</h2>
+    <div id="project-roles-recommendations">Carregando recomendações...</div>
+  </div>
+</section>
+
+<style>
+  .project-roles-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .project-roles-heading p,
+  .project-roles-muted,
+  .project-roles-member-meta,
+  .project-roles-bar-label {
+    color: var(--text-muted);
+  }
+
+  .project-role-card {
+    border-top: 4px solid var(--primary-color);
+  }
+
+  .project-role-card h3,
+  .project-roles-member-card h3 {
+    color: var(--primary-color);
+    margin-bottom: 8px;
+  }
+
+  .project-role-tags,
+  .project-roles-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .project-role-tag,
+  .project-roles-badge {
+    background: var(--primary-color);
+    color: #fff;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+
+  .project-roles-member-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .project-roles-member-meta {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+
+  .project-roles-bar {
+    margin: 12px 0;
+  }
+
+  .project-roles-bar-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  .project-roles-track {
+    height: 12px;
+    border-radius: 999px;
+    background: #f0f0f0;
+    overflow: hidden;
+  }
+
+  .project-roles-fill {
+    height: 100%;
+    min-width: 2px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  }
+
+  .project-roles-rec {
+    background: #f9f9f9;
+    border-left: 4px solid var(--primary-color);
+    border-radius: 5px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+
+  .project-roles-rec h3 {
+    margin-bottom: 4px;
+    color: var(--text-main);
+  }
+
+  @media (max-width: 700px) {
+    .project-roles-heading {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+
+<script>
+  (function() {
+    var roleGuide = [
+      {
+        title: 'Líder',
+        description: 'Guia a equipe, toma decisões e mantém clareza de direção.',
+        traits: ['Decisão', 'Motivação', 'Visão', 'Coragem']
+      },
+      {
+        title: 'Executor',
+        description: 'Transforma planos em entregas consistentes e acompanha detalhes.',
+        traits: ['Foco', 'Precisão', 'Confiabilidade', 'Persistência']
+      },
+      {
+        title: 'Inovador',
+        description: 'Gera ideias, testa caminhos novos e desafia soluções acomodadas.',
+        traits: ['Criatividade', 'Inovação', 'Flexibilidade', 'Experimentação']
+      },
+      {
+        title: 'Colaborador',
+        description: 'Fortalece relações, cria apoio mútuo e sustenta a cooperação.',
+        traits: ['Empatia', 'Comunicação', 'Apoio', 'Harmonia']
+      },
+      {
+        title: 'Analista',
+        description: 'Organiza informação, identifica padrões e apoia decisões com clareza.',
+        traits: ['Análise', 'Planejamento', 'Atenção', 'Lógica']
+      },
+      {
+        title: 'Mentor',
+        description: 'Desenvolve pessoas, compartilha experiência e amplia autonomia.',
+        traits: ['Ensino', 'Paciência', 'Experiência', 'Escuta']
+      }
+    ];
+
+    var elementLabels = { Fire: 'Fogo', Earth: 'Terra', Air: 'Ar', Water: 'Água' };
+    var modalityLabels = { Cardinal: 'Cardinal', Fixed: 'Fixo', Mutable: 'Mutável' };
+    var signLabels = {
+      Aries: 'Áries', Taurus: 'Touro', Gemini: 'Gêmeos', Cancer: 'Câncer', Leo: 'Leão', Virgo: 'Virgem',
+      Libra: 'Libra', Scorpio: 'Escorpião', Sagittarius: 'Sagitário', Capricorn: 'Capricórnio', Aquarius: 'Aquário', Pisces: 'Peixes'
+    };
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function(char) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
+      });
+    }
+
+    function label(map, value) {
+      return map[value] || value || '-';
+    }
+
+    function badgeList(items, emptyText) {
+      if (!Array.isArray(items) || !items.length) {
+        return '<p class="project-roles-muted">' + escapeHtml(emptyText || 'Nenhum item disponível.') + '</p>';
+      }
+      return '<div class="project-roles-tags">' + items.map(function(item) {
+        return '<span class="project-roles-badge">' + escapeHtml(item) + '</span>';
+      }).join('') + '</div>';
+    }
+
+    function renderRoleGuide() {
+      document.getElementById('project-role-guide').innerHTML = roleGuide.map(function(role) {
+        return '<div class="card project-role-card">' +
+          '<h3>' + escapeHtml(role.title) + '</h3>' +
+          '<p>' + escapeHtml(role.description) + '</p>' +
+          '<div class="project-role-tags">' + role.traits.map(function(trait) {
+            return '<span class="project-role-tag">' + escapeHtml(trait) + '</span>';
+          }).join('') + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function renderMembers(suggestions) {
+      var state = document.getElementById('project-roles-state');
+      var container = document.getElementById('project-roles-members');
+
+      if (!Array.isArray(suggestions) || !suggestions.length) {
+        state.style.display = '';
+        state.innerHTML = '<p>Nenhuma sugestão foi gerada ainda. Cadastre membros para calcular papéis.</p>';
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+      }
+
+      state.style.display = 'none';
+      container.style.display = '';
+      container.innerHTML = suggestions.map(function(item) {
+        return '<div class="card project-roles-member-card">' +
+          '<div>' +
+            '<h3>' + escapeHtml(item.member || 'Membro sem nome') + '</h3>' +
+            '<p class="project-roles-member-meta">' + escapeHtml(item.email || '-') + '</p>' +
+            '<p class="project-roles-member-meta">' + escapeHtml(label(signLabels, item.sunSign)) + ' · ' + escapeHtml(label(elementLabels, item.element)) + ' · ' + escapeHtml(label(modalityLabels, item.modality)) + '</p>' +
+          '</div>' +
+          badgeList(item.suggestedRoles, 'Sem papéis sugeridos.') +
+          '<div><button class="btn" onclick="openProjectRoleMember(\'' + encodeURIComponent(item.email || '') + '\')">Ver perfil</button></div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function getCount(distribution, key) {
+      return Number(distribution && distribution[key]) || 0;
+    }
+
+    function getPercent(distribution, key, total) {
+      var explicit = distribution && distribution[key];
+      if (explicit != null && explicit !== '') return Number(explicit) || 0;
+      return total > 0 ? 0 : 0;
+    }
+
+    function renderDistribution(containerId, distribution, items) {
+      var total = getCount(distribution, 'total');
+      if (!total) {
+        document.getElementById(containerId).innerHTML = '<p class="project-roles-muted">Sem dados suficientes.</p>';
+        return;
+      }
+
+      document.getElementById(containerId).innerHTML = items.map(function(item) {
+        var count = getCount(distribution, item.key);
+        var percent = getPercent(distribution, item.percentKey, total);
+        if (!percent) percent = total ? (count / total * 100) : 0;
+        return '<div class="project-roles-bar">' +
+          '<div class="project-roles-bar-top"><span>' + escapeHtml(item.label) + '</span><span>' + count + ' (' + percent.toFixed(1) + '%)</span></div>' +
+          '<div class="project-roles-track"><div class="project-roles-fill" style="width:' + Math.max(percent, 2) + '%;"></div></div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function renderComposition(composition) {
+      if (!composition || !composition.currentTeam) {
+        document.getElementById('project-roles-elements').innerHTML = '<p class="project-roles-muted">Sem distribuição calculada.</p>';
+        document.getElementById('project-roles-modalities').innerHTML = '<p class="project-roles-muted">Sem distribuição calculada.</p>';
+        document.getElementById('project-roles-recommendations').innerHTML = '<p class="project-roles-muted">Sem recomendações disponíveis.</p>';
+        return;
+      }
+
+      renderDistribution('project-roles-elements', composition.currentTeam.elementDistribution || {}, [
+        { key: 'Fire', percentKey: 'firePercent', label: 'Fogo' },
+        { key: 'Earth', percentKey: 'earthPercent', label: 'Terra' },
+        { key: 'Air', percentKey: 'airPercent', label: 'Ar' },
+        { key: 'Water', percentKey: 'waterPercent', label: 'Água' }
+      ]);
+
+      renderDistribution('project-roles-modalities', composition.currentTeam.modalityDistribution || {}, [
+        { key: 'Cardinal', percentKey: 'cardinalPercent', label: 'Cardinal' },
+        { key: 'Fixed', percentKey: 'fixedPercent', label: 'Fixo' },
+        { key: 'Mutable', percentKey: 'mutablePercent', label: 'Mutável' }
+      ]);
+
+      var recs = Array.isArray(composition.recommendations) ? composition.recommendations : [];
+      if (!recs.length) {
+        document.getElementById('project-roles-recommendations').innerHTML = '<p>Composição equilibrada. Nenhuma lacuna crítica foi detectada.</p>';
+        return;
+      }
+
+      document.getElementById('project-roles-recommendations').innerHTML = recs.map(function(rec) {
+        return '<div class="project-roles-rec">' +
+          '<h3>' + escapeHtml(rec.type || 'Recomendação') + '</h3>' +
+          '<p>' + escapeHtml(rec.suggestion || rec.recommendation || '-') + '</p>' +
+          '<p class="project-roles-muted"><strong>Benefício:</strong> ' + escapeHtml(rec.benefit || rec.impact || '-') + '</p>' +
+        '</div>';
+      }).join('');
+    }
+
+    window.openProjectRoleMember = function(encodedEmail) {
+      var params = new URLSearchParams(window.location.search);
+      params.set('page', 'index');
+      params.set('view', 'MemberProfile');
+      params.set('memberId', decodeURIComponent(encodedEmail || ''));
+      window.location.search = params.toString();
+    };
+
+    window.loadProjectRoles = async function() {
+      if (!window.Utils || typeof Utils.callServer !== 'function') {
+        document.getElementById('project-roles-state').innerHTML = '<p>Utilitários do aplicativo indisponíveis.</p>';
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        document.getElementById('project-roles-state').style.display = '';
+        document.getElementById('project-roles-state').innerHTML = '<p>Carregando sugestões...</p>';
+        document.getElementById('project-roles-members').style.display = 'none';
+
+        var result = await Utils.callServer('getProjectSuggestions');
+        if (!result || !result.success || !result.data) {
+          document.getElementById('project-roles-state').innerHTML = '<p>' + escapeHtml((result && (result.error || result.message)) || 'Não foi possível gerar sugestões de papéis.') + '</p>';
+          renderComposition(null);
+          return;
+        }
+
+        renderMembers(result.data.individualSuggestions || []);
+        renderComposition(result.data.teamComposition || null);
+      } catch (error) {
+        console.error('Erro ao carregar papéis:', error);
+        document.getElementById('project-roles-state').innerHTML = '<p>Erro ao carregar sugestões de papéis.</p>';
+        renderComposition(null);
+      } finally {
+        Utils.hideLoading();
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+      renderRoleGuide();
+      loadProjectRoles();
+    });
+  })();
+</script>
+
+
+

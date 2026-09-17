@@ -1,0 +1,408 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container productivity-view">
+  <div class="card productivity-heading">
+    <div>
+      <h2>Análise de Produtividade</h2>
+      <p>Indicadores da equipe a partir dos perfis astrológicos gerados.</p>
+    </div>
+    <button class="btn btn-primary" onclick="loadProductivityAnalysis()">Atualizar</button>
+  </div>
+
+  <div id="pa-state" class="card">Carregando análise de produtividade...</div>
+
+  <div id="pa-content" style="display:none;">
+    <div class="grid">
+      <div class="card">
+        <h3>Membros com Perfil</h3>
+        <div class="stat" id="pa-count">0</div>
+      </div>
+      <div class="card">
+        <h3>Elemento Predominante</h3>
+        <div class="stat" id="pa-top-element">-</div>
+      </div>
+      <div class="card">
+        <h3>Modalidade Predominante</h3>
+        <div class="stat" id="pa-top-modality">-</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Resumo por Membro</h3>
+      <div id="pa-table"></div>
+    </div>
+
+    <div class="card">
+      <h3>Dicas de Produtividade por Elemento</h3>
+      <div id="pa-tips"></div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .productivity-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .productivity-heading p { color: var(--text-muted); }
+  .productivity-view .stat {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--secondary-color);
+    margin-top: 8px;
+  }
+  .pa-tip {
+    background: #f9f9f9;
+    border-left: 4px solid var(--primary-color);
+    border-radius: 5px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .pa-tip h4 { color: var(--primary-color); margin-bottom: 4px; }
+  .pa-tip p { color: var(--text-muted); margin: 4px 0; }
+  .pa-table { width: 100%; border-collapse: collapse; }
+  .pa-table th { text-align: left; padding: 10px; border-bottom: 2px solid #ddd; }
+  .pa-table td { padding: 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+</style>
+
+<script>
+  (function() {
+    var elementLabels = { Fire: 'Fogo', Earth: 'Terra', Air: 'Ar', Water: 'Água' };
+    var modalityLabels = { Cardinal: 'Cardinal', Fixed: 'Fixo', Mutable: 'Mutável' };
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function(c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+
+    function label(map, value) { return map[value] || value || '-'; }
+
+    function topKey(counts) {
+      var best = null, bestN = -1;
+      Object.keys(counts).forEach(function(k) {
+        if (counts[k] > bestN) { bestN = counts[k]; best = k; }
+      });
+      return bestN > 0 ? best : null;
+    }
+
+    function showState(message) {
+      var state = document.getElementById('pa-state');
+      var content = document.getElementById('pa-content');
+      if (state) { state.style.display = ''; state.innerHTML = message; }
+      if (content) content.style.display = 'none';
+    }
+
+    function showContent() {
+      document.getElementById('pa-state').style.display = 'none';
+      document.getElementById('pa-content').style.display = '';
+    }
+
+    function profileOf(m) {
+      var p = (m && m.productivityProfile && typeof m.productivityProfile === 'object') ? m.productivityProfile : {};
+      return {
+        element: p.element || m.element || null,
+        modality: p.modality || m.modality || null,
+        roles: Array.isArray(p.suggestedRoles) ? p.suggestedRoles : [],
+        comm: p.communicationStyle || '-',
+        productivity: p.elementProductivity || '',
+        tips: Array.isArray(p.productivityTips) ? p.productivityTips : []
+      };
+    }
+
+    function renderTable(members) {
+      var rows = members.map(function(m) {
+        var p = profileOf(m);
+        var roles = p.roles.slice(0, 3).join(', ') || '-';
+        return '<tr>' +
+          '<td>' + escapeHtml(m.name || '-') + '</td>' +
+          '<td>' + escapeHtml(m.sunSign || '-') + '</td>' +
+          '<td>' + escapeHtml(label(elementLabels, p.element)) + '</td>' +
+          '<td>' + escapeHtml(label(modalityLabels, p.modality)) + '</td>' +
+          '<td>' + escapeHtml(roles) + '</td>' +
+          '<td>' + escapeHtml(p.comm) + '</td>' +
+        '</tr>';
+      }).join('');
+
+      document.getElementById('pa-table').innerHTML =
+        '<table class="pa-table"><thead><tr>' +
+        '<th>Membro</th><th>Signo</th><th>Elemento</th><th>Modalidade</th>' +
+        '<th>Papéis sugeridos</th><th>Estilo de comunicação</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+
+    function renderTips(members) {
+      var seen = {};
+      var blocks = [];
+      members.forEach(function(m) {
+        var p = profileOf(m);
+        if (!p.element || seen[p.element]) return;
+        seen[p.element] = true;
+        var tips = p.tips.slice(0, 2);
+        blocks.push(
+          '<div class="pa-tip">' +
+            '<h4>' + escapeHtml(label(elementLabels, p.element)) + '</h4>' +
+            (p.productivity ? '<p>' + escapeHtml(p.productivity) + '</p>' : '') +
+            (tips.length ? '<ul style="margin:6px 0 0 18px;">' + tips.map(function(t) { return '<li>' + escapeHtml(t) + '</li>'; }).join('') + '</ul>' : '') +
+          '</div>'
+        );
+      });
+      document.getElementById('pa-tips').innerHTML = blocks.length
+        ? blocks.join('')
+        : '<p style="color:var(--text-muted);">Sem dicas disponíveis ainda.</p>';
+    }
+
+    window.loadProductivityAnalysis = async function() {
+      if (!window.Utils || typeof Utils.callServer !== 'function') {
+        showState('<p>Utilitários do aplicativo indisponíveis.</p>');
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        showState('<p>Carregando análise de produtividade...</p>');
+
+        var result = await Utils.callServer('getTeamMembers');
+        var members = (result && result.success && Array.isArray(result.data)) ? result.data : [];
+        var profiled = members.filter(function(m) {
+          return m && m.productivityProfile && typeof m.productivityProfile === 'object';
+        });
+
+        if (!profiled.length) {
+          showState('<h2>Nenhum perfil disponível</h2><p>Cadastre membros para gerar perfis de produtividade.</p><button class="btn btn-primary" onclick="loadPage(\'AddMember\')">Adicionar membro</button>');
+          return;
+        }
+
+        var elementCounts = {}, modalityCounts = {};
+        profiled.forEach(function(m) {
+          var p = profileOf(m);
+          if (p.element) elementCounts[p.element] = (elementCounts[p.element] || 0) + 1;
+          if (p.modality) modalityCounts[p.modality] = (modalityCounts[p.modality] || 0) + 1;
+        });
+
+        document.getElementById('pa-count').textContent = profiled.length;
+        document.getElementById('pa-top-element').textContent = label(elementLabels, topKey(elementCounts));
+        document.getElementById('pa-top-modality').textContent = label(modalityLabels, topKey(modalityCounts));
+
+        renderTable(profiled);
+        renderTips(profiled);
+        showContent();
+      } catch (error) {
+        console.error('Erro ao carregar análise de produtividade:', error);
+        showState('<h2>Erro ao carregar análise</h2><p>Tente atualizar a página.</p>');
+      } finally {
+        Utils.hideLoading();
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', loadProductivityAnalysis);
+  })();
+</script>
+
+
+

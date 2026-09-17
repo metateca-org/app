@@ -1,0 +1,311 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+        .container { max-width: 700px; margin: 40px auto; padding: 30px; background: white; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+        h1 { color: #667eea; margin-bottom: 15px; text-align: center; }
+        p { color: #666; text-align: center; margin-bottom: 30px; }
+        .rating-section { margin-bottom: 30px; text-align: center; }
+        .rating-label { display: block; margin-bottom: 15px; font-weight: 600; }
+        .stars { display: flex; justify-content: center; gap: 10px; font-size: 2.5em; cursor: pointer; }
+        .star { color: #ddd; transition: color 0.3s; }
+        .star:hover, .star.active { color: #ffca28; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+        textarea { resize: vertical; min-height: 120px; }
+        .category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .category-item { padding: 10px; border: 1px solid #ddd; border-radius: 5px; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .category-item:hover, .category-item.active { background: #667eea; color: white; border-color: #667eea; }
+        .btn-submit { width: 100%; padding: 15px; background: #667eea; color: white; border: none; border-radius: 5px; font-size: 1.1em; font-weight: 600; cursor: pointer; transition: background 0.3s; }
+        .btn-submit:hover { background: #764ba2; }
+        .success-message { display: none; text-align: center; padding: 40px; }
+        .success-icon { font-size: 4em; color: #51cf66; margin-bottom: 20px; }
+
+
+
+
+</style>
+
+<div class="container" id="feedback-container">
+        <h1>Sua Opinião é Importante</h1>
+        <p>Ajude-nos a melhorar o sistema compartilhando sua experiência.</p>
+
+        <form id="feedback-form">
+            <div class="rating-section">
+                <span class="rating-label">Como você avalia sua experiência geral?</span>
+                <div class="stars">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>O que você mais gostou?</label>
+                <div class="category-grid">
+                    <div class="category-item">Interface</div>
+                    <div class="category-item">Análises</div>
+                    <div class="category-item">Precisão</div>
+                    <div class="category-item">Suporte</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="comments">Seus Comentários</label>
+                <textarea id="comments" placeholder="Conte-nos mais sobre sua experiência, sugestões ou problemas encontrados..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email (Opcional)</label>
+                <input inputmode="email" type="email" id="email" placeholder="Para que possamos responder, se necessário" autocomplete="email">
+            </div>
+
+            <button type="submit" class="btn-submit">Enviar Feedback</button>
+        </form>
+    </div>
+
+    <div class="container success-message" id="success-message">
+        <div class="success-icon"><i class="material-icons cdx-mi" aria-hidden="true">auto_awesome</i></div>
+        <h1>Obrigado pelo Feedback!</h1>
+        <p>Suas observações foram recebidas e serão usadas para tornar o sistema ainda melhor.</p>
+        <button class="btn-submit" onclick="location.reload()">Enviar Outro</button>
+    </div>
+
+    <script>
+        // Star rating logic
+        const stars = document.querySelectorAll('.star');
+        stars.forEach(star => {
+            star.addEventListener('click', () => {
+                const value = parseInt(star.getAttribute('data-value'));
+                stars.forEach((s, index) => {
+                    if (index < value) s.classList.add('active');
+                    else s.classList.remove('active');
+                });
+            });
+        });
+
+        // Category selection logic
+        const categories = document.querySelectorAll('.category-item');
+        categories.forEach(cat => {
+            cat.addEventListener('click', () => {
+                cat.classList.toggle('active');
+            });
+        });
+
+        // Form submission logic
+        document.getElementById('feedback-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            document.getElementById('feedback-container').style.display = 'none';
+            document.getElementById('success-message').style.display = 'block';
+        });
+    </script>
+
+
+

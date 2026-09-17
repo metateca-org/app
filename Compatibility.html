@@ -1,0 +1,400 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container compat-view">
+  <div class="card compat-heading">
+    <div>
+      <h2>Compatibilidade</h2>
+      <p>Compare dois membros e veja a compatibilidade por elemento, modalidade e signo.</p>
+    </div>
+    <button class="btn" type="button" onclick="loadPage('TeamDynamics')" style="background:#f0f0f0;color:var(--primary-color);">Ver Matriz</button>
+  </div>
+
+  <div class="card compat-picker">
+    <div class="compat-picker-field">
+      <label for="compat-a">Membro A</label>
+      <select id="compat-a" class="compat-select"></select>
+    </div>
+    <div class="compat-vs">×</div>
+    <div class="compat-picker-field">
+      <label for="compat-b">Membro B</label>
+      <select id="compat-b" class="compat-select"></select>
+    </div>
+    <button class="btn btn-primary" type="button" id="compat-go">Comparar</button>
+  </div>
+
+  <div id="compat-state" class="card">Selecione dois membros para comparar.</div>
+
+  <div id="compat-result" style="display:none;">
+    <div class="card compat-overall">
+      <div class="compat-score-ring" id="compat-ring">0%</div>
+      <div>
+        <h3 id="compat-pair-title">-</h3>
+        <p class="compat-muted" id="compat-assessment">-</p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card"><h3>Por Elemento</h3><div id="compat-element"></div></div>
+      <div class="card"><h3>Por Modalidade</h3><div id="compat-modality"></div></div>
+      <div class="card"><h3>Por Signo</h3><div id="compat-sign"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Referência: Compatibilidade entre Elementos</h3>
+    <div class="compat-ref" id="compat-ref"></div>
+  </div>
+</section>
+
+<style>
+  .compat-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .compat-heading p { color: var(--text-muted); }
+  .compat-picker { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+  .compat-picker-field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; }
+  .compat-picker-field label { font-weight: 600; }
+  .compat-select { padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; font-size: 0.95em; }
+  .compat-select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(102,126,234,0.15); }
+  .compat-vs { font-size: 1.4rem; font-weight: 800; color: var(--text-muted); padding-bottom: 8px; }
+  .compat-muted { color: var(--text-muted); }
+  .compat-overall { display: flex; gap: 22px; align-items: center; }
+  .compat-score-ring {
+    width: 120px; height: 120px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; font-weight: 800; color: #fff;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  }
+  .compat-bar-top { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 6px; }
+  .compat-track { height: 14px; border-radius: 999px; background: #f0f0f0; overflow: hidden; }
+  .compat-fill { height: 100%; min-width: 2px; border-radius: 999px; }
+  .compat-fill.high { background: var(--success); }
+  .compat-fill.medium { background: var(--warning); }
+  .compat-fill.low { background: var(--error); }
+  .compat-note { color: var(--text-muted); font-size: 0.9rem; margin-top: 8px; }
+  .compat-ref { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .compat-ref-item { background: #f9f9f9; border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; }
+  .compat-ref-item strong { color: var(--primary-color); }
+  @media (max-width: 700px) { .compat-overall { flex-direction: column; text-align: center; } }
+</style>
+
+<script>
+  (function() {
+    var elementLabels = { Fire: 'Fogo', Earth: 'Terra', Air: 'Ar', Water: 'Água' };
+    var modalityLabels = { Cardinal: 'Cardinal', Fixed: 'Fixo', Mutable: 'Mutável' };
+    var signLabels = {
+      Aries: 'Áries', Taurus: 'Touro', Gemini: 'Gêmeos', Cancer: 'Câncer', Leo: 'Leão', Virgo: 'Virgem',
+      Libra: 'Libra', Scorpio: 'Escorpião', Sagittarius: 'Sagitário', Capricorn: 'Capricórnio', Aquarius: 'Aquário', Pisces: 'Peixes'
+    };
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function(c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+    function label(map, v) { return map[v] || v || '-'; }
+    function scoreClass(s) { var n = Number(s) || 0; return n >= 80 ? 'high' : (n >= 60 ? 'medium' : 'low'); }
+
+    function bar(value, note) {
+      var v = Number(value) || 0;
+      return '<div class="compat-bar-top"><span>Pontuação</span><span>' + v + '%</span></div>' +
+        '<div class="compat-track"><div class="compat-fill ' + scoreClass(v) + '" style="width:' + Math.max(v, 2) + '%;"></div></div>' +
+        (note ? '<p class="compat-note">' + escapeHtml(note) + '</p>' : '');
+    }
+
+    function renderRef() {
+      var ref = [
+        ['Mesmo elemento', 90], ['Fogo + Ar', 85], ['Terra + Água', 75],
+        ['Ar + Água', 65], ['Fogo + Terra', 50], ['Terra + Ar', 50], ['Fogo + Água', 40]
+      ];
+      document.getElementById('compat-ref').innerHTML = ref.map(function(r) {
+        return '<div class="compat-ref-item"><span>' + escapeHtml(r[0]) + '</span><strong>' + r[1] + '%</strong></div>';
+      }).join('');
+    }
+
+    function showState(msg) {
+      document.getElementById('compat-state').style.display = '';
+      document.getElementById('compat-state').innerHTML = msg;
+      document.getElementById('compat-result').style.display = 'none';
+    }
+
+    function renderResult(d) {
+      document.getElementById('compat-ring').textContent = (d.overall || 0) + '%';
+      document.getElementById('compat-ring').style.background =
+        d.overall >= 80 ? 'var(--success)' : (d.overall >= 60 ? 'var(--warning)' : 'var(--error)');
+      document.getElementById('compat-pair-title').textContent = (d.memberA.name || '-') + '  ×  ' + (d.memberB.name || '-');
+      document.getElementById('compat-assessment').textContent = d.assessment || '-';
+
+      document.getElementById('compat-element').innerHTML =
+        bar(d.elementScore, label(elementLabels, d.memberA.element) + ' + ' + label(elementLabels, d.memberB.element) + (d.sameElement ? ' (mesmo elemento)' : ''));
+      document.getElementById('compat-modality').innerHTML =
+        bar(d.modalityScore, label(modalityLabels, d.memberA.modality) + ' + ' + label(modalityLabels, d.memberB.modality) + (d.sameModality ? ' (mesma modalidade)' : ''));
+      document.getElementById('compat-sign').innerHTML =
+        bar(d.signScore, label(signLabels, d.memberA.sunSign) + ' + ' + label(signLabels, d.memberB.sunSign));
+
+      document.getElementById('compat-state').style.display = 'none';
+      document.getElementById('compat-result').style.display = '';
+    }
+
+    async function compare() {
+      var a = document.getElementById('compat-a').value;
+      var b = document.getElementById('compat-b').value;
+      if (!a || !b) { showState('Selecione dois membros.'); return; }
+      if (a === b) { showState('Selecione <strong>dois membros diferentes</strong> para comparar.'); return; }
+
+      try {
+        Utils.showLoading();
+        showState('Calculando compatibilidade...');
+        var result = await Utils.callServer('getCompatibility', [a, b]);
+        if (!result || !result.success || !result.data) {
+          showState('<p>' + escapeHtml((result && (result.error || result.message)) || 'Não foi possível calcular.') + '</p>');
+          return;
+        }
+        renderResult(result.data);
+      } catch (error) {
+        console.error('Erro ao comparar:', error);
+        showState('<p>Erro ao calcular compatibilidade.</p>');
+      } finally {
+        Utils.hideLoading();
+      }
+    }
+
+    async function init() {
+      renderRef();
+      if (!window.Utils || typeof Utils.callServer !== 'function') {
+        showState('<p>Utilitários do aplicativo indisponíveis.</p>');
+        return;
+      }
+      try {
+        Utils.showLoading();
+        var listResult = await Utils.callServer('getTeamMembers');
+        var members = (listResult && listResult.success && Array.isArray(listResult.data)) ? listResult.data : [];
+        if (members.length < 2) {
+          showState('<h2>Membros insuficientes</h2><p>Cadastre pelo menos dois membros para comparar compatibilidade.</p><button class="btn btn-primary" onclick="loadPage(\'AddMember\')">Adicionar membro</button>');
+          return;
+        }
+        var opts = members.map(function(m) {
+          return '<option value="' + escapeHtml(m.email) + '">' + escapeHtml(m.name || m.email) + ' — ' + escapeHtml(label(signLabels, m.sunSign)) + '</option>';
+        }).join('');
+        var selA = document.getElementById('compat-a');
+        var selB = document.getElementById('compat-b');
+        selA.innerHTML = opts;
+        selB.innerHTML = opts;
+        selA.selectedIndex = 0;
+        selB.selectedIndex = 1;
+        document.getElementById('compat-go').addEventListener('click', compare);
+        await compare();
+      } catch (error) {
+        console.error('Erro ao iniciar compatibilidade:', error);
+        showState('<p>Não foi possível carregar os membros.</p>');
+      } finally {
+        Utils.hideLoading();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  })();
+</script>
+
+
+

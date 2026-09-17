@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <!-- codex-elegant: design details refined -->
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Metateca — Funcionalidades</title>
+  <style>
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+    body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#0f172a;color:#e2e8f0}
+    .wrap{max-width:820px;margin:0 auto;padding:24px}
+    h2{margin:0 0 4px} h3{margin:18px 0 8px;border-bottom:1px solid #334155;padding-bottom:4px}
+    label{display:block;font-size:13px;margin:8px 0 2px;color:#94a3b8}
+    input,select,textarea{width:100%;padding:8px;border:1px solid #334155;border-radius:6px;background:#1e293b;color:#e2e8f0;box-sizing:border-box}
+    button{margin-top:10px;padding:9px 16px;border:0;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer}
+    button.sec{background:#334155}
+    .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;margin:14px 0}
+    .msg{font-size:13px;margin-top:8px;min-height:16px} .ok{color:#34d399}.err{color:#f87171}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+    th,td{border:1px solid #334155;padding:4px 6px;text-align:left}
+    .hidden{display:none}
+  </style>
+
+
+<style id="up-oracular-design-system">
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+  <style id="cdx-border-to-color">
+/* Padronização de borders → cores complementares (FROTA-20) */
+input:not([type="hidden"]),
+textarea,
+select,
+[class*="input"],
+[class*="field"],
+[class*="form"],
+.card,
+.panel,
+.box,
+.container,
+.modal,
+[class*="modal"],
+[class*="dialog"],
+dialog {
+  border: none !important;
+  border-width: 0 !important;
+}
+
+input:not([type="hidden"]),
+textarea,
+select {
+  background-color: #20242b !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1), 0 0 0 2px #e9ecf1 !important;
+}
+  </style>
+
+  <style id="fleet-mobile-wcag-aa">
+    /* Contrato FROTA: ergonomia S20 e WCAG 2.1 AA. */
+    html, body { max-width: 100%; overflow-x: hidden; }
+    :is(button, [role="button"], input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
+      min-width: 48px !important;
+      min-height: 48px !important;
+      touch-action: manipulation;
+    }
+  </style>
+</head>
+<body>
+    <main>
+
+<div class="wrap">
+  <h2>Metateca · Funcionalidades</h2>
+  <p style="color:#94a3b8">Notas de equipe e sugestão de duplas de colaboração (requer login).</p>
+
+  <div id="loginBox" class="card">
+    <h3>Entrar</h3>
+    <label>Usuário</label><input inputmode="text" id="u" placeholder="admin01">
+    <label>Senha</label><input inputmode="text" id="p" type="password" placeholder="admin123" autocomplete="current-password">
+    <button onclick="entrar()">Entrar</button>
+    <div id="loginMsg" class="msg"></div>
+  </div>
+
+  <div id="app" class="hidden">
+    <p>Logado como <b id="who"></b> · <a href="#" onclick="logout();return false">sair</a></p>
+
+    <div class="card">
+      <h3>Propor dupla de colaboração</h3>
+      <p style="color:#94a3b8;font-size:13px">Escolha dois membros cadastrados e explique como suas contribuições podem se complementar.</p>
+      <label for="dp_a">Membro A</label><select id="dp_a"></select>
+      <label for="dp_b">Membro B</label><select id="dp_b"></select>
+      <label for="dp_m">Justificativa (20 a 500 caracteres)</label><textarea id="dp_m" rows="3" minlength="20" maxlength="500"></textarea>
+      <button id="proposeButton" onclick="addDupla()">Enviar para revisão</button>
+      <button id="candidateRetry" type="button" onclick="loadCandidates()" hidden>Tentar carregar membros novamente</button>
+      <div id="dpMsg" class="msg"></div>
+    </div>
+
+    <div id="reviewCard" class="card hidden">
+      <h3>Aprovações (admin)</h3>
+      <p style="color:#94a3b8;font-size:13px;margin:4px 0">Cada proposta pode ser decidida uma única vez. Rejeições exigem justificativa.</p>
+      <button class="sec" onclick="loadPend()">Atualizar pendências</button>
+      <div id="pend"></div>
+    </div>
+
+    <section id="agreementCelebration" class="metateca-agreement-celebration" hidden role="status" aria-live="polite">
+      <img class="metateca-asset" data-asset-name="selo_acordo_revisavel.svg" data-asset-deferred hidden alt="Selo de acordo revisável">
+      <p><strong>Acordo revisável aprovado</strong>A revisão foi registrada pelo backend. O grupo pode acompanhar o histórico e construir novas revisões quando necessário.</p>
+    </section>
+
+    <div class="card">
+      <h3>Histórico de propostas</h3>
+      <button class="sec" onclick="loadHistory()">Atualizar histórico</button>
+      <div id="history"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var LOGIN_FN = 'login';
+  var SESSION = { token:'', user:null };
+  var SESSION_EPOCH = 0, proposalPending = false, logoutPending = false;
+  var historyRequest = 0, pendingRequest = 0;
+  function $(id){ return document.getElementById(id); }
+  function val(id){ return $(id).value; }
+  function onErr(e){ alert('Erro: ' + (e && e.message ? e.message : e)); }
+  function run(fn, args, cb, fail){
+    var epoch = SESSION_EPOCH;
+    function failed(error){ if(epoch===SESSION_EPOCH) (fail || onErr)(error); }
+    try {
+      var r = google.script.run.withSuccessHandler(function(res){ if(epoch===SESSION_EPOCH) cb(res); }).withFailureHandler(failed);
+      r[fn].apply(r, args);
+    } catch(error) { failed(error); }
+  }
+  function setMsg(id, text, ok){ var el=$(id); el.textContent=text||''; el.className='msg '+(ok?'ok':'err'); }
+
+  function entrar(){
+    var u=val('u'), p=val('p');
+    run(LOGIN_FN, [u,p], function(res){
+      var data = res && res.data;
+      if(!res || !res.success || !data || !data.token || !data.user){ setMsg('loginMsg',(res&&res.message)||'Credenciais inválidas.', false); return; }
+      SESSION = { token:data.token, user:data.user };
+      SESSION_EPOCH++;
+      $('who').textContent = data.user.username || u;
+      if(String(data.user.role || '').toLowerCase()==='admin') $('reviewCard').classList.remove('hidden');
+      $('loginBox').classList.add('hidden'); $('app').classList.remove('hidden');
+      loadCandidates(); loadHistory();
+      if(String(data.user.role || '').toLowerCase()==='admin') loadPend();
+    });
+  }
+  function logout(){
+    if(logoutPending || proposalPending) return;
+    var token=SESSION.token;
+    logoutPending=true;
+    SESSION_EPOCH++;
+    function finish(){
+      SESSION={token:'',user:null}; SESSION_EPOCH++; logoutPending=false; proposalPending=false;
+      ['history','pend','dp_a','dp_b','who'].forEach(function(id){$(id).textContent='';});
+      $('dp_m').value=''; $('p').value=''; setMsg('dpMsg','',true);
+      $('agreementCelebration').hidden=true;
+      $('app').classList.add('hidden'); $('reviewCard').classList.add('hidden'); $('loginBox').classList.remove('hidden');
+    }
+    if(!token){finish();return;}
+    run('logout',[token],function(res){
+      if(res && res.success){finish();}
+      else {logoutPending=false; onErr({message:(res&&res.message)||'Não foi possível encerrar a sessão. Tente novamente.'});}
+    },function(error){logoutPending=false; onErr(error);});
+  }
+
+  function loadCandidates(){
+    if(proposalPending || logoutPending) return;
+    $('proposeButton').disabled=true;
+    $('candidateRetry').hidden=true;
+    function failedCandidates(message){setMsg('dpMsg',message,false);$('candidateRetry').hidden=false;}
+    run('getCollaborationCandidates',[SESSION.token],function(res){
+      if(!res || !res.success || !Array.isArray(res.data)) {failedCandidates((res&&res.message)||'Falha ao carregar membros. Tente novamente.');return;}
+      var items=res&&res.success&&Array.isArray(res.data)?res.data:[];
+      ['dp_a','dp_b'].forEach(function(id){
+        var select=$(id); select.textContent='';
+        var empty=document.createElement('option'); empty.value=''; empty.textContent='Selecione'; select.appendChild(empty);
+        items.forEach(function(item){ var option=document.createElement('option'); option.value=item.id; option.textContent=item.name; select.appendChild(option); });
+      });
+      $('proposeButton').disabled=items.length<2;
+      if(items.length<2) failedCandidates('Cadastre pelo menos dois membros antes de propor uma dupla.');
+      else setMsg('dpMsg','Membros carregados. Escolha a dupla e justifique.',true);
+    },function(){failedCandidates('Não foi possível carregar os membros. Tente novamente.');});
+  }
+
+  function addDupla(){
+    if(proposalPending || logoutPending || $('proposeButton').disabled) return;
+    var membroA = val('dp_a');
+    var membroB = val('dp_b');
+    var justificativa = val('dp_m');
+    
+    // Validações frontend
+    if (!membroA || !membroB) {
+      setMsg('dpMsg', 'Selecione dois membros.', false);
+      return;
+    }
+    if (membroA === membroB) {
+      setMsg('dpMsg', 'Escolha pessoas distintas para a dupla.', false);
+      return;
+    }
+    if (justificativa.length < 20 || justificativa.length > 500) {
+      setMsg('dpMsg', 'A justificativa deve ter entre 20 e 500 caracteres.', false);
+      $('dp_m').focus();
+      return;
+    }
+    
+    proposalPending=true; $('proposeButton').disabled=true;
+    var rationale=justificativa;
+    function release(){proposalPending=false; $('proposeButton').disabled=false;}
+    run('proposeCollaboration', [SESSION.token,membroA,membroB,justificativa], function(res){
+      release();
+      if(res && res.success){ setMsg('dpMsg','Proposta registrada: '+res.data.id, true); if(val('dp_m')===rationale) $('dp_m').value=''; loadHistory(); if(SESSION.user.role==='admin') loadPend(); }
+      else setMsg('dpMsg', (res&&res.message)||'Falha.', false);
+    },function(){release(); setMsg('dpMsg','Não recebemos confirmação. Atualize o histórico antes de reenviar a mesma proposta.',false);});
+  }
+
+  function cell(row,text){ var td=document.createElement('td'); td.textContent=text==null?'':String(text); row.appendChild(td); return td; }
+  function renderProposals(id,res,withActions){
+    var box=$(id); box.textContent='';
+    if(!res||!res.success){ var err=document.createElement('span'); err.className='err'; err.textContent=(res&&res.message)||'Falha ao carregar.'; box.appendChild(err); return; }
+    var items=Array.isArray(res.data)?res.data:[];
+    if(!items.length){ var empty=document.createElement('i'); empty.textContent='Nenhuma proposta.'; box.appendChild(empty); return; }
+    var table=document.createElement('table'), head=document.createElement('tr');
+    ['Dupla','Justificativa','Status','Revisão'].concat(withActions?['Ações']:[]).forEach(function(label){ var th=document.createElement('th'); th.textContent=label; head.appendChild(th); });
+    table.appendChild(head);
+    items.forEach(function(item){
+      var row=document.createElement('tr'); cell(row,(item.MembroANome||item.MembroAId)+' + '+(item.MembroBNome||item.MembroBId)); cell(row,item.Justificativa); cell(row,item.Status); cell(row,item.NotaRevisao||'—');
+      if(withActions){ var actions=cell(row,''); var approve=document.createElement('button'); approve.textContent='Aprovar'; approve.onclick=function(){review(item.ID,'aprovada');}; actions.appendChild(approve); var reject=document.createElement('button'); reject.className='sec'; reject.textContent='Rejeitar'; reject.onclick=function(){review(item.ID,'rejeitada');}; actions.appendChild(reject); }
+      table.appendChild(row);
+    });
+    box.appendChild(table);
+  }
+  function loadHistory(){ var request=++historyRequest; run('listCollaborations',[SESSION.token,''],function(res){if(request===historyRequest)renderProposals('history',res,false);}); }
+  function loadPend(){ var request=++pendingRequest; run('listCollaborations',[SESSION.token,'pendente'],function(res){if(request===pendingRequest)renderProposals('pend',res,true);}); }
+  function review(id,decision){
+    var note=prompt(decision==='rejeitada'?'Motivo da rejeição (mínimo 10 caracteres):':'Observação da aprovação (opcional):');
+    if(note===null)return;
+    if(decision==='rejeitada' && (!note || note.trim().length < 10)){
+      alert('O motivo da rejeição deve ter pelo menos 10 caracteres.');
+      return;
+    }
+    run('reviewCollaboration',[SESSION.token,id,decision,note],function(res){
+      if(res&&res.success){
+        loadPend(); loadHistory();
+        if(decision==='aprovada'){
+          $('agreementCelebration').hidden=false;
+          if(window.MetatecaOrgAssets) window.MetatecaOrgAssets.reveal('selo_acordo_revisavel.svg');
+        }
+      }else alert((res&&res.message)||'Falha.');
+    });
+  }
+</script>
+  <?!= include("GameAssets"); ?>
+  <?!= include("ClientCall"); ?>
+
+    </main>
+</body>
+</html>

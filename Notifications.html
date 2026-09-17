@@ -1,0 +1,417 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        h1 { color: #667eea; margin-bottom: 30px; }
+        .filter-bar { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; gap: 10px; }
+        .filter-btn { padding: 8px 15px; background: #f0f0f0; color: #667eea; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; }
+        .filter-btn.active { background: #667eea; color: white; }
+        .notification-list { display: flex; flex-direction: column; gap: 15px; }
+        .notification-item { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; gap: 15px; align-items: flex-start; border-left: 4px solid #667eea; }
+        .notification-item.unread { background: #f9f9ff; }
+        .notification-icon { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 1.5em; flex-shrink: 0; }
+        .notification-icon.info { background: #d1ecf1; }
+        .notification-icon.success { background: #d4edda; }
+        .notification-icon.warning { background: #fff3cd; }
+        .notification-icon.error { background: #f8d7da; }
+        .notification-content { flex: 1; }
+        .notification-title { color: #333; font-weight: 600; margin-bottom: 5px; }
+        .notification-message { color: #666; font-size: 0.95em; margin-bottom: 8px; }
+        .notification-time { color: #999; font-size: 0.85em; }
+        .notification-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .action-btn { padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.85em; }
+        .action-btn.secondary { background: #f0f0f0; color: #667eea; }
+        .action-btn:hover { opacity: 0.9; }
+        .empty-state { text-align: center; padding: 40px; color: #999; }
+        .empty-state-icon { font-size: 3em; margin-bottom: 15px; }
+        .notification-badge { display: inline-block; background: #ff6b6b; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; margin-left: 10px; }
+
+
+
+
+</style>
+
+<div class="container">
+        <h1>Notificações <span class="notification-badge">5</span></h1>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <button class="filter-btn active">Todas</button>
+            <button class="filter-btn">Não Lidas</button>
+            <button class="filter-btn">Compatibilidade</button>
+            <button class="filter-btn">Produtividade</button>
+            <button class="filter-btn">Sistema</button>
+        </div>
+
+        <!-- Notifications -->
+        <div class="notification-list">
+            <!-- Notification 1 -->
+            <div class="notification-item unread">
+                <div class="notification-icon info">ℹ️</div>
+                <div class="notification-content">
+                    <div class="notification-title">Compatibilidade Baixa Detectada</div>
+                    <div class="notification-message">João Silva e Ana Oliveira têm compatibilidade de apenas 65%. Considere mediação ou atividades de team building.</div>
+                    <div class="notification-time">Há 2 horas</div>
+                    <div class="notification-actions">
+                        <button class="action-btn">Ver Detalhes</button>
+                        <button class="action-btn secondary">Descartar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification 2 -->
+            <div class="notification-item unread">
+                <div class="notification-icon success">✓</div>
+                <div class="notification-content">
+                    <div class="notification-title">Produtividade em Alta</div>
+                    <div class="notification-message">A produtividade geral da equipe aumentou 5% esta semana. João Silva lidera com 95%.</div>
+                    <div class="notification-time">Há 4 horas</div>
+                    <div class="notification-actions">
+                        <button class="action-btn">Ver Relatório</button>
+                        <button class="action-btn secondary">Descartar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification 3 -->
+            <div class="notification-item unread">
+                <div class="notification-icon warning"><i class="material-icons cdx-mi" aria-hidden="true">warning</i></div>
+                <div class="notification-content">
+                    <div class="notification-title">Novo Membro Adicionado</div>
+                    <div class="notification-message">Carlos Mendes (Virgo) foi adicionado à equipe. Compatibilidade média com a equipe é 78%.</div>
+                    <div class="notification-time">Há 6 horas</div>
+                    <div class="notification-actions">
+                        <button class="action-btn">Ver Perfil</button>
+                        <button class="action-btn secondary">Descartar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification 4 -->
+            <div class="notification-item">
+                <div class="notification-icon success">✓</div>
+                <div class="notification-content">
+                    <div class="notification-title">Relatório Gerado</div>
+                    <div class="notification-message">Seu relatório de compatibilidade está pronto para download.</div>
+                    <div class="notification-time">Ontem às 14:30</div>
+                    <div class="notification-actions">
+                        <button class="action-btn">Download</button>
+                        <button class="action-btn secondary">Descartar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification 5 -->
+            <div class="notification-item">
+                <div class="notification-icon info">ℹ️</div>
+                <div class="notification-content">
+                    <div class="notification-title">Atualização do Sistema</div>
+                    <div class="notification-message">Nova versão disponível com melhorias na análise astrológica. Atualize agora para melhor performance.</div>
+                    <div class="notification-time">2 dias atrás</div>
+                    <div class="notification-actions">
+                        <button class="action-btn">Atualizar</button>
+                        <button class="action-btn secondary">Mais Tarde</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification 6 -->
+            <div class="notification-item">
+                <div class="notification-icon warning"><i class="material-icons cdx-mi" aria-hidden="true">warning</i></div>
+                <div class="notification-content">
+                    <div class="notification-title">Horário de Pico de Produtividade</div>
+                    <div class="notification-message">A equipe tem pico de produtividade entre 8h-12h. Agende tarefas críticas neste período.</div>
+                    <div class="notification-time">3 dias atrás</div>
+                    <div class="notification-actions">
+                        <button class="action-btn">Ver Análise</button>
+                        <button class="action-btn secondary">Descartar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// Torna a central de notificacoes interativa: filtros por categoria, descartar
+// (com atualizacao do contador) e acoes que dao retorno ao usuario.
+(function () {
+  var list = document.querySelector('.notification-list');
+  var badge = document.querySelector('.notification-badge');
+  if (!list) return;
+
+  function updateBadge() {
+    if (!badge) return;
+    var visiveis = list.querySelectorAll('.notification-item.unread').length;
+    badge.textContent = visiveis;
+    badge.style.display = visiveis ? '' : 'none';
+  }
+
+  function toast(msg) {
+    if (window.Utils && typeof Utils.showToast === 'function') {
+      Utils.showToast(msg, 'info');
+      return;
+    }
+    var t = document.getElementById('nz-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'nz-toast';
+      t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);' +
+        'background:#333;color:#fff;padding:10px 18px;border-radius:6px;z-index:9999;font-size:.9em;box-shadow:0 4px 12px rgba(0,0,0,.25)';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.display = 'block';
+    window.clearTimeout(t._h);
+    t._h = window.setTimeout(function () { t.style.display = 'none'; }, 3200);
+  }
+
+  // Filtros: casa o rotulo do botao com o conteudo de cada notificacao.
+  var filtros = {
+    'Todas': function () { return true; },
+    'Não Lidas': function (it) { return it.classList.contains('unread'); },
+    'Compatibilidade': function (it) { return /compatibilidade/i.test(it.textContent); },
+    'Produtividade': function (it) { return /produtividade|pico|desempenho/i.test(it.textContent); },
+    'Sistema': function (it) { return /sistema|atualiza|vers[aã]o/i.test(it.textContent); }
+  };
+  var botoesFiltro = document.querySelectorAll('.filter-btn');
+  botoesFiltro.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      botoesFiltro.forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var pred = filtros[btn.textContent.trim()] || function () { return true; };
+      var mostrados = 0;
+      list.querySelectorAll('.notification-item').forEach(function (it) {
+        var ok = pred(it);
+        it.style.display = ok ? '' : 'none';
+        if (ok) mostrados++;
+      });
+      toast(mostrados + ' notificação(ões) nesta categoria.');
+    });
+  });
+
+  // Acoes e descartar (delegacao de eventos).
+  list.addEventListener('click', function (e) {
+    var btn = e.target.closest('.action-btn');
+    if (!btn || !list.contains(btn)) return;
+    var item = btn.closest('.notification-item');
+    var rotulo = btn.textContent.trim();
+    if (/descartar|mais tarde/i.test(rotulo)) {
+      if (item) {
+        item.style.transition = 'opacity .3s ease';
+        item.style.opacity = '0';
+        window.setTimeout(function () { item.remove(); updateBadge(); }, 300);
+      }
+      return;
+    }
+    if (item) { item.classList.remove('unread'); updateBadge(); }
+    toast('Ação “' + rotulo + '” registrada.');
+  });
+
+  updateBadge();
+})();
+</script>
+

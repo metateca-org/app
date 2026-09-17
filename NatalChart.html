@@ -1,0 +1,443 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<section class="container natal-view">
+  <div class="card natal-heading">
+    <div>
+      <h2>Mapa Natal</h2>
+      <p>Mapa do signo solar calculado a partir dos dados de nascimento do membro.</p>
+    </div>
+    <div class="natal-controls">
+      <select id="nc-member" class="natal-select"></select>
+      <button class="btn" type="button" onclick="loadPage('TeamMembers')" style="background:#f0f0f0;color:var(--primary-color);">Equipe</button>
+    </div>
+  </div>
+
+  <div id="nc-state" class="card">Carregando mapa natal...</div>
+
+  <div id="nc-content" style="display:none;">
+    <div class="card natal-header">
+      <div class="natal-emblem"><span id="nc-glyph">☉</span></div>
+      <div class="natal-header-info">
+        <h1 id="nc-name">-</h1>
+        <p class="natal-muted" id="nc-birth">-</p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>☉ Sol</h3>
+        <div class="natal-info-grid">
+          <div class="natal-info"><span>Signo</span><strong id="nc-sign">-</strong></div>
+          <div class="natal-info"><span>Elemento</span><strong id="nc-element">-</strong></div>
+          <div class="natal-info"><span>Modalidade</span><strong id="nc-modality">-</strong></div>
+          <div class="natal-info"><span>Regente</span><strong id="nc-ruler">-</strong></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Características</h3>
+        <div id="nc-traits"></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card"><h3>Pontos Fortes</h3><div id="nc-strengths"></div></div>
+      <div class="card"><h3>Desafios</h3><div id="nc-challenges"></div></div>
+    </div>
+
+    <div class="card" id="nc-full"></div>
+  </div>
+</section>
+
+<style>
+  .natal-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .natal-heading p { color: var(--text-muted); }
+  .natal-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .natal-select { padding: 9px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95em; font-family: inherit; min-width: 200px; }
+  .natal-select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(102,126,234,0.15); }
+  .natal-header { display: flex; gap: 24px; align-items: center; }
+  .natal-emblem {
+    width: 110px; height: 110px; border-radius: 50%;
+    border: 3px solid var(--primary-color);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 3rem; color: var(--primary-color);
+    box-shadow: 0 0 20px rgba(102, 126, 234, 0.25); flex-shrink: 0;
+  }
+  .natal-header-info h1 { color: var(--text-main); margin-bottom: 6px; }
+  .natal-muted { color: var(--text-muted); }
+  .natal-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; }
+  .natal-info { background: #f9f9f9; border-radius: 6px; padding: 12px; }
+  .natal-info span { display: block; font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .natal-info strong { color: var(--primary-color); }
+  .natal-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .natal-tag { background: var(--primary-color); color: #fff; border-radius: 999px; padding: 5px 12px; font-size: 0.84rem; font-weight: 700; }
+  .natal-list { margin: 0; padding-left: 20px; }
+  .natal-list li { margin: 6px 0; }
+  .natal-notice { background: #d1ecf1; color: #0c5460; border-left: 4px solid #0c5460; padding: 14px; border-radius: 6px; }
+  .natal-aspects { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  .natal-aspects th { text-align: left; padding: 10px; border-bottom: 2px solid #ddd; }
+  .natal-aspects td { padding: 10px; border-bottom: 1px solid #eee; }
+  @media (max-width: 700px) { .natal-header { flex-direction: column; text-align: center; } }
+</style>
+
+<script>
+  (function() {
+    var elementLabels = { Fire: 'Fogo', Earth: 'Terra', Air: 'Ar', Water: 'Água' };
+    var modalityLabels = { Cardinal: 'Cardinal', Fixed: 'Fixo', Mutable: 'Mutável' };
+    var signLabels = {
+      Aries: 'Áries', Taurus: 'Touro', Gemini: 'Gêmeos', Cancer: 'Câncer', Leo: 'Leão', Virgo: 'Virgem',
+      Libra: 'Libra', Scorpio: 'Escorpião', Sagittarius: 'Sagitário', Capricorn: 'Capricórnio', Aquarius: 'Aquário', Pisces: 'Peixes'
+    };
+    var signGlyphs = {
+      Aries: '♈', Taurus: '♉', Gemini: '♊', Cancer: '♋', Leo: '♌', Virgo: '♍',
+      Libra: '♎', Scorpio: '♏', Sagittarius: '♐', Capricorn: '♑', Aquarius: '♒', Pisces: '♓'
+    };
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function(c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+    function label(map, value) { return map[value] || value || '-'; }
+    function setText(id, v) { var el = document.getElementById(id); if (el) el.textContent = (v == null || v === '') ? '-' : v; }
+
+    function tags(items, empty) {
+      if (!Array.isArray(items) || !items.length) return '<p class="natal-muted">' + escapeHtml(empty || '-') + '</p>';
+      return '<div class="natal-tags">' + items.map(function(i) { return '<span class="natal-tag">' + escapeHtml(i) + '</span>'; }).join('') + '</div>';
+    }
+    function bullets(items, empty) {
+      if (!Array.isArray(items) || !items.length) return '<p class="natal-muted">' + escapeHtml(empty || '-') + '</p>';
+      return '<ul class="natal-list">' + items.map(function(i) { return '<li>' + escapeHtml(i) + '</li>'; }).join('') + '</ul>';
+    }
+
+    function showState(message) {
+      var s = document.getElementById('nc-state');
+      s.style.display = ''; s.innerHTML = message;
+      document.getElementById('nc-content').style.display = 'none';
+    }
+    function showContent() {
+      document.getElementById('nc-state').style.display = 'none';
+      document.getElementById('nc-content').style.display = '';
+    }
+
+    function formatBirth(local) {
+      var parts = [];
+      if (local.birthDate) parts.push(window.Utils && Utils.formatDate ? Utils.formatDate(local.birthDate) : local.birthDate);
+      if (local.birthTime) parts.push(local.birthTime);
+      if (local.birthLocation) parts.push(local.birthLocation);
+      return parts.join(' · ') || '-';
+    }
+
+    function renderFullChart(data) {
+      var box = document.getElementById('nc-full');
+      if (!data.apiAvailable || !data.fullChart) {
+        box.innerHTML = '<h3>Mapa Completo</h3><div class="natal-notice">' + escapeHtml(data.apiNote || 'Mapa completo indisponível.') + '</div>';
+        return;
+      }
+      var c = data.fullChart;
+      var planets = Array.isArray(c.planets) ? c.planets : [];
+      var houses = Array.isArray(c.houses) ? c.houses : [];
+      var aspects = Array.isArray(c.aspects) ? c.aspects : [];
+      var html = '<h3>Mapa Completo</h3>';
+      html += '<div class="natal-info-grid">' +
+        '<div class="natal-info"><span>Lua</span><strong>' + escapeHtml(label(signLabels, c.moonSign)) + '</strong></div>' +
+        '<div class="natal-info"><span>Ascendente</span><strong>' + escapeHtml(label(signLabels, c.ascendant)) + '</strong></div>' +
+      '</div>';
+      if (planets.length) {
+        html += '<h4 style="margin:16px 0 8px;color:var(--primary-color);">Planetas</h4>' +
+          tags(planets.map(function(p) { return p.name + ': ' + label(signLabels, p.sign) + (p.degree != null ? ' ' + p.degree + '°' : ''); }), 'Sem planetas.');
+      }
+      if (aspects.length) {
+        html += '<h4 style="margin:16px 0 8px;color:var(--primary-color);">Aspectos</h4>' +
+          '<table class="natal-aspects"><thead><tr><th>Planeta 1</th><th>Aspecto</th><th>Planeta 2</th><th>Orbe</th></tr></thead><tbody>' +
+          aspects.map(function(a) { return '<tr><td>' + escapeHtml(a.planet1) + '</td><td>' + escapeHtml(a.type) + '</td><td>' + escapeHtml(a.planet2) + '</td><td>' + escapeHtml(a.orb != null ? a.orb + '°' : '-') + '</td></tr>'; }).join('') +
+          '</tbody></table>';
+      }
+      if (houses.length) {
+        html += '<h4 style="margin:16px 0 8px;color:var(--primary-color);">Casas</h4>' +
+          tags(houses.map(function(h) { return 'Casa ' + h.house + ': ' + label(signLabels, h.sign); }), 'Sem casas.');
+      }
+      box.innerHTML = html;
+    }
+
+    function renderChart(data) {
+      var local = data.local || {};
+      var sun = local.sun || {};
+      setText('nc-name', local.name);
+      setText('nc-birth', formatBirth(local));
+      document.getElementById('nc-glyph').textContent = signGlyphs[sun.sign] || '☉';
+      setText('nc-sign', label(signLabels, sun.sign));
+      setText('nc-element', label(elementLabels, sun.element));
+      setText('nc-modality', label(modalityLabels, sun.modality));
+      setText('nc-ruler', sun.rulingPlanet);
+      document.getElementById('nc-traits').innerHTML = tags(sun.traits, 'Sem características.');
+      document.getElementById('nc-strengths').innerHTML = bullets(sun.strengths, 'Sem dados.');
+      document.getElementById('nc-challenges').innerHTML = bullets(sun.challenges, 'Sem dados.');
+      renderFullChart(data);
+      showContent();
+    }
+
+    async function loadChart(memberId) {
+      if (!memberId) { showState('<p class="natal-muted">Selecione um membro para ver o mapa natal.</p>'); return; }
+      try {
+        Utils.showLoading();
+        showState('Carregando mapa natal...');
+        var result = await Utils.callServer('getNatalChart', [memberId]);
+        if (!result || !result.success || !result.data) {
+          showState('<h2>Mapa indisponível</h2><p>' + escapeHtml((result && (result.error || result.message)) || 'Não foi possível carregar o mapa deste membro.') + '</p>');
+          return;
+        }
+        renderChart(result.data);
+      } catch (error) {
+        console.error('Erro ao carregar mapa natal:', error);
+        showState('<h2>Erro</h2><p>Não foi possível carregar o mapa natal.</p>');
+      } finally {
+        Utils.hideLoading();
+      }
+    }
+
+    async function init() {
+      if (!window.Utils || typeof Utils.callServer !== 'function') {
+        showState('<p>Utilitários do aplicativo indisponíveis.</p>');
+        return;
+      }
+
+      var params = new URLSearchParams(window.location.search);
+      var requested = params.get('memberId') || params.get('email') || '';
+
+      try {
+        Utils.showLoading();
+        var listResult = await Utils.callServer('getTeamMembers');
+        var members = (listResult && listResult.success && Array.isArray(listResult.data)) ? listResult.data : [];
+        var select = document.getElementById('nc-member');
+
+        if (!members.length) {
+          select.style.display = 'none';
+          showState('<h2>Nenhum membro</h2><p>Cadastre membros para visualizar mapas natais.</p><button class="btn btn-primary" onclick="loadPage(\'AddMember\')">Adicionar membro</button>');
+          return;
+        }
+
+        select.innerHTML = members.map(function(m) {
+          return '<option value="' + escapeHtml(m.email) + '">' + escapeHtml(m.name || m.email) + ' — ' + escapeHtml(label(signLabels, m.sunSign)) + '</option>';
+        }).join('');
+
+        var initial = members.filter(function(m) { return String(m.email).toLowerCase() === String(requested).toLowerCase(); })[0] || members[0];
+        select.value = initial.email;
+        select.addEventListener('change', function() { loadChart(select.value); });
+
+        await loadChart(initial.email);
+      } catch (error) {
+        console.error('Erro ao iniciar mapa natal:', error);
+        showState('<h2>Erro</h2><p>Não foi possível carregar a lista de membros.</p>');
+      } finally {
+        Utils.hideLoading();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  })();
+</script>
+
+
+

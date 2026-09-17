@@ -1,0 +1,394 @@
+<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .about-header { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 40px; border-radius: 10px; margin-bottom: 30px; color: white; text-align: center; }
+        .about-header h1 { font-size: 2.5em; margin-bottom: 15px; }
+        .about-header p { font-size: 1.1em; opacity: 0.9; }
+        .about-section { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .about-section h2 { color: #667eea; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .about-section p { color: #666; line-height: 1.8; margin-bottom: 15px; }
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px; }
+        .feature-item { background: #f9f9f9; padding: 20px; border-radius: 5px; border-left: 4px solid #667eea; }
+        .feature-item h3 { color: #667eea; margin-bottom: 10px; }
+        .feature-item p { color: #666; font-size: 0.95em; }
+        .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px; }
+        .team-member { text-align: center; background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        .member-avatar { width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; color: white; font-size: 2em; margin: 0 auto 15px; }
+        .member-name { font-weight: 600; color: #333; margin-bottom: 5px; }
+        .member-role { color: #999; font-size: 0.9em; }
+        .timeline { position: relative; padding: 20px 0; }
+        .timeline-item { margin-bottom: 30px; padding-left: 40px; position: relative; }
+        .timeline-item:before { content: ''; position: absolute; left: 0; top: 0; width: 20px; height: 20px; background: #667eea; border-radius: 50%; }
+        .timeline-item:after { content: ''; position: absolute; left: 9px; top: 20px; width: 2px; height: 30px; background: #ddd; }
+        .timeline-item:last-child:after { display: none; }
+        .timeline-item h3 { color: #667eea; margin-bottom: 5px; }
+        .timeline-item p { color: #666; font-size: 0.95em; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-top: 20px; }
+        .stat-card { background: #f9f9f9; padding: 20px; text-align: center; border-radius: 5px; }
+        .stat-number { font-size: 2em; font-weight: bold; color: #667eea; }
+        .stat-label { color: #666; font-size: 0.9em; margin-top: 5px; }
+
+
+
+
+</style>
+
+<div class="container">
+        <!-- Header -->
+        <div class="about-header">
+            <h1><i class="material-icons cdx-mi" aria-hidden="true">star</i> Sobre o Sistema</h1>
+            <p>Revolucionando a gestão de equipes através da astrologia e inteligência emocional</p>
+        </div>
+
+        <!-- Mission -->
+        <div class="about-section">
+            <h2>Nossa Missão</h2>
+            <p>Criar um sistema inovador que combine conhecimento astrológico milenar com tecnologia moderna para otimizar a dinâmica, comunicação e produtividade de equipes. Acreditamos que compreender os perfis astrológicos dos membros da equipe pode levar a uma colaboração mais harmoniosa e resultados superiores.</p>
+        </div>
+
+        <!-- Vision -->
+        <div class="about-section">
+            <h2>Nossa Visão</h2>
+            <p>Ser a plataforma líder em gestão de equipes baseada em astrologia, ajudando organizações em todo o mundo a criar ambientes de trabalho mais colaborativos, produtivos e satisfatórios. Queremos que cada membro da equipe entenda seu potencial único e contribua plenamente para o sucesso coletivo.</p>
+        </div>
+
+        <!-- Features -->
+        <div class="about-section">
+            <h2>Nossos Recursos</h2>
+            <div class="features-grid">
+                <div class="feature-item">
+                    <h3><i class="material-icons cdx-mi" aria-hidden="true">bar_chart</i> Análise Astrológica</h3>
+                    <p>Cálculos precisos de cartas natais e perfis astrológicos baseados em dados de nascimento.</p>
+                </div>
+
+                <div class="feature-item">
+                    <h3><i class="material-icons cdx-mi" aria-hidden="true">handshake</i> Compatibilidade</h3>
+                    <p>Análise detalhada de compatibilidade entre membros para otimizar parcerias.</p>
+                </div>
+
+                <div class="feature-item">
+                    <h3><i class="material-icons cdx-mi" aria-hidden="true">work</i> Produtividade</h3>
+                    <p>Identificação de horários de pico e papéis ideais para cada membro.</p>
+                </div>
+
+                <div class="feature-item">
+                    <h3><i class="material-icons cdx-mi" aria-hidden="true">chat</i> Comunicação</h3>
+                    <p>Dicas personalizadas para comunicação efetiva baseadas em perfis astrológicos.</p>
+                </div>
+
+                <div class="feature-item">
+                    <h3><i class="material-icons cdx-mi" aria-hidden="true">trending_up</i> Relatórios</h3>
+                    <p>Geração de relatórios detalhados e exportação em múltiplos formatos.</p>
+                </div>
+
+                <div class="feature-item">
+                    <h3><i class="material-icons cdx-mi" aria-hidden="true">flag</i> Recomendações</h3>
+                    <p>Sugestões estratégicas para otimizar dinâmica e performance da equipe.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="about-section">
+            <h2>Nossa História</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h3>2020 - Conceito</h3>
+                    <p>Ideia inicial de combinar astrologia com gestão de equipes para melhorar colaboração.</p>
+                </div>
+
+                <div class="timeline-item">
+                    <h3>2021 - Desenvolvimento</h3>
+                    <p>Desenvolvimento do primeiro protótipo com análise astrológica básica.</p>
+                </div>
+
+                <div class="timeline-item">
+                    <h3>2022 - Beta</h3>
+                    <p>Lançamento da versão beta com testes em pequenas equipes.</p>
+                </div>
+
+                <div class="timeline-item">
+                    <h3>2023 - Expansão</h3>
+                    <p>Adição de recursos de compatibilidade, produtividade e comunicação.</p>
+                </div>
+
+                <div class="timeline-item">
+                    <h3>2024 - Lançamento</h3>
+                    <p>Lançamento oficial da plataforma com suporte completo e documentação.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="about-section">
+            <h2>Nossos Números</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">500+</div>
+                    <div class="stat-label">Equipes Ativas</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-number">5000+</div>
+                    <div class="stat-label">Membros Analisados</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-number">98%</div>
+                    <div class="stat-label">Satisfação</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-number">25+</div>
+                    <div class="stat-label">Países</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team -->
+        <div class="about-section">
+            <h2>Nosso Time</h2>
+            <div class="team-grid">
+                <div class="team-member">
+                    <div class="member-avatar"><i class="material-icons cdx-mi" aria-hidden="true">person</i>‍<i class="material-icons cdx-mi" aria-hidden="true">work</i></div>
+                    <div class="member-name">Carlos Silva</div>
+                    <div class="member-role">Fundador & CEO</div>
+                </div>
+
+                <div class="team-member">
+                    <div class="member-avatar"><i class="material-icons cdx-mi" aria-hidden="true">person</i>‍<i class="material-icons cdx-mi" aria-hidden="true">computer</i></div>
+                    <div class="member-name">Ana Costa</div>
+                    <div class="member-role">CTO</div>
+                </div>
+
+                <div class="team-member">
+                    <div class="member-avatar"><i class="material-icons cdx-mi" aria-hidden="true">person</i>‍<i class="material-icons cdx-mi" aria-hidden="true">biotech</i></div>
+                    <div class="member-name">Pedro Oliveira</div>
+                    <div class="member-role">Astrolog Consultor</div>
+                </div>
+
+                <div class="team-member">
+                    <div class="member-avatar"><i class="material-icons cdx-mi" aria-hidden="true">person</i>‍<i class="material-icons cdx-mi" aria-hidden="true">school</i></div>
+                    <div class="member-name">Maria Santos</div>
+                    <div class="member-role">Psicóloga Organizacional</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact -->
+        <div class="about-section">
+            <h2>Entre em Contato</h2>
+            <p>Tem dúvidas ou sugestões? Adoraríamos ouvir de você!</p>
+            <p><strong>Email:</strong> <a href="mailto:info@astrology-team.com" style="color: #667eea; text-decoration: none;">info@astrology-team.com</a></p>
+            <p><strong>Website:</strong> <a href="https://www.astrology-team.com" style="color: #667eea; text-decoration: none;">www.astrology-team.com</a></p>
+            <p><strong>Redes Sociais:</strong> @AstrologyTeam</p>
+        </div>
+    </div>
+
+
+

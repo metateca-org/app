@@ -1,0 +1,687 @@
+﻿<style id="up-oracular-design-system">
+:focus-visible {
+  outline: 3px solid var(--accent, #8ab4f8);
+  outline-offset: 2px;
+}
+:root {
+  color-scheme: dark;
+  --uo-bg: #15171c;
+  --uo-panel: #20242b;
+  --uo-text: #e9ecf1;
+  --uo-muted: #b2b9c4;
+  --uo-border: #343941;
+  --uo-accent: #7aa2d6;
+  --uo-radius-group: 10px;
+  --uo-radius-control: 8px;
+}
+
+html, body {
+  background: var(--uo-bg) !important;
+  color: var(--uo-text) !important;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body, input, select, textarea, button {
+  color: var(--uo-text);
+}
+
+.card, .panel, .modal, .dialog, dialog, .container,
+.box, .widget, .section, .sidebar, .drawer, .popover,
+[role="dialog"], [class*="card"], [class*="panel"] {
+  background-color: var(--uo-panel) !important;
+  border-color: var(--uo-border) !important;
+  border-radius: var(--uo-radius-group) !important;
+}
+
+button, input, select, textarea, .btn, .button,
+[role="button"], [role="menuitem"], .dropdown-item,
+.menu-item, [class*="button"], [class*="dropdown-item"] {
+  border-radius: var(--uo-radius-control) !important;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input, select, textarea {
+  background-color: var(--uo-panel) !important;
+  border: 1px solid var(--uo-border) !important;
+  padding: 8px !important;
+  box-sizing: border-box;
+}
+
+label, .form-label, [class*="form-label"] {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uo-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+}
+
+.uo-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.uo-feedback-box {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--uo-border);
+  border-radius: var(--uo-radius-group);
+  background: var(--uo-panel);
+  color: var(--uo-text);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.uo-feedback-box.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.uo-feedback-box[data-kind="ok"] {
+  border-color: #8fc2a6;
+  color: #8fc2a6;
+}
+
+.uo-feedback-box[data-kind="err"] {
+  border-color: #d98b93;
+  color: #d98b93;
+}
+
+form[aria-busy="true"] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+form[aria-busy="true"] :is(button, input[type="submit"], input[type="button"]) {
+  pointer-events: none;
+}
+
+button, .btn-primary, .button-primary,
+[class*="primary"][role="button"] {
+  background-color: var(--uo-accent) !important;
+}
+
+p, small, .muted, .secondary, .subtitle,
+[class*="muted"], [class*="secondary"] {
+  color: var(--uo-muted) !important;
+}
+
+hr, table, th, td, fieldset {
+  border-color: var(--uo-border) !important;
+}
+
+a {
+  color: var(--uo-accent);
+}
+
+/* Geometrias funcionais permanecem circulares. */
+.avatar, .spinner, .loading-ring, .dot, .status-dot,
+[class*="avatar"], [class*="spinner"], [class*="loading-ring"] {
+  border-radius: 50% !important;
+}
+</style>
+<script id="up-oracular-form-feedback">
+(function () {
+  'use strict';
+  if (window.UpOracularFeedback) return;
+
+  var timer = null;
+  function notify(kind, message) {
+    var box = document.getElementById('uo-feedback-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'uo-feedback-box';
+      box.className = 'uo-feedback-box';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      document.body.appendChild(box);
+    }
+    box.dataset.kind = kind === 'err' ? 'err' : 'ok';
+    box.textContent = String(message || (kind === 'err' ? 'Nao foi possivel concluir.' : 'Operacao concluida.'));
+    box.classList.add('is-visible');
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      box.classList.remove('is-visible');
+    }, 1000);
+  }
+
+  function connectLabels(form) {
+    form.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(function (field, index) {
+      var id = field.id || ('uo-field-' + index + '-' + Math.random().toString(36).slice(2, 7));
+      field.id = id;
+      var label = form.querySelector('label[for="' + id + '"]');
+      if (!label) {
+        var sibling = field.previousElementSibling;
+        if (sibling && sibling.tagName === 'LABEL') {
+          sibling.htmlFor = id;
+          label = sibling;
+        }
+      }
+      if (label && field.parentElement && !field.parentElement.classList.contains('uo-field')) {
+        field.parentElement.classList.add('uo-field');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(connectLabels);
+  });
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    form.setAttribute('aria-busy', 'true');
+    notify('ok', 'Enviando...');
+    window.setTimeout(function () {
+      if (form.getAttribute('aria-busy') === 'true') {
+        form.removeAttribute('aria-busy');
+      }
+    }, 10000);
+  }, true);
+
+  window.UpOracularFeedback = {
+    ok: function (message) { notify('ok', message); },
+    err: function (message) { notify('err', message); },
+    done: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('ok', message);
+    },
+    fail: function (form, message) {
+      if (form) form.removeAttribute('aria-busy');
+      notify('err', message);
+    }
+  };
+}());
+</script>
+
+<script>
+  /**
+   * Global utility functions for the Astrology & Team project
+   */
+  const Utils = {
+    showLoading: function() {
+      const loader = document.getElementById('loader');
+      if (loader) loader.style.display = 'flex';
+    },
+
+    hideLoading: function() {
+      const loader = document.getElementById('loader');
+      if (loader) loader.style.display = 'none';
+    },
+
+    formatDate: function(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('pt-BR');
+    },
+
+    showToast: function(message, type) {
+      const toastType = type || 'info';
+      let toast = document.getElementById('app-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'app-toast';
+        toast.className = 'app-toast';
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+        document.body.appendChild(toast);
+      }
+
+      toast.textContent = String(message || '');
+      toast.dataset.type = toastType;
+      toast.hidden = false;
+      window.clearTimeout(toast._hideTimer);
+      toast._hideTimer = window.setTimeout(function() {
+        toast.hidden = true;
+      }, 4200);
+    },
+
+    callServer: function(functionName, args) {
+      const functionArgs = Array.isArray(args) ? args : [];
+      // Delegate to ClientCall for retry/backoff on transient transport errors.
+      // unwrap:false keeps the raw StandardReturn envelope, so every existing
+      // view that checks result.success / result.data keeps working unchanged.
+      if (window.ClientCall && typeof ClientCall.call === 'function') {
+        return ClientCall.call(functionName, functionArgs, { unwrap: false });
+      }
+      // Fallback: direct invocation when ClientCall is not loaded.
+      return new Promise(function(resolve, reject) {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)[functionName].apply(google.script.run, functionArgs);
+      });
+    }
+  };
+
+  // Client-side session for the username/password login (Auth.gs / Api.login).
+  // The credential check happens on the server; here we only remember who is
+  // logged in for the lifetime of the tab and gate the protected views.
+  const Auth = {
+    KEY: 'metateca.session',
+    get: function() {
+      try { return JSON.parse(sessionStorage.getItem(this.KEY) || 'null'); }
+      catch (e) { return null; }
+    },
+    set: function(user) {
+      try { sessionStorage.setItem(this.KEY, JSON.stringify(user || null)); }
+      catch (e) {}
+    },
+    clear: function() {
+      try { sessionStorage.removeItem(this.KEY); } catch (e) {}
+    },
+    isAuthed: function() { return !!this.get(); }
+  };
+  window.Auth = Auth;
+
+  // Views reachable without being logged in.
+  const PUBLIC_VIEWS = ['Login', 'Register', 'ForgotPassword'];
+
+  // Redirect to Login when an unauthenticated user lands on a protected view.
+  // Returns false when a redirect was triggered (caller should stop).
+  function enforceAuth() {
+    if (PUBLIC_VIEWS.indexOf(currentView()) >= 0) return true;
+    if (Auth.isAuthed()) return true;
+    loadPage('Login');
+    return false;
+  }
+
+  function loadPage(pageName) {
+    const page = String(pageName || 'Dashboard').replace(/[^a-zA-Z0-9_-]/g, '');
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', 'index');
+    params.set('view', page);
+    window.location.search = params.toString();
+  }
+
+  // Logout: revoke the server token, clear the tab session and return to Login.
+  function logout() {
+    var session = window.Auth && Auth.get ? Auth.get() : null;
+    var token = (session && session.token) || (window.METATECA_AUTH && window.METATECA_AUTH.token) || '';
+
+    function goLogin() {
+      if (window.Auth) Auth.clear();
+      var base = (window.METATECA_AUTH && window.METATECA_AUTH.scriptUrl) || window.location.pathname;
+      window.top.location.href = base ? (base + '?page=login') : '?page=login';
+    }
+
+    if (token && window.google && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(goLogin)
+        .withFailureHandler(goLogin)
+        .logoutWithToken(token);
+      return;
+    }
+
+    goLogin();
+  }
+
+  // Toggle the off-canvas sidebar on small screens.
+  function toggleSidebar() {
+    document.body.classList.toggle('sidebar-visible');
+  }
+
+  // Fill shell user info (sidebar footer) with the logged-in user. Prefers the
+  // password session; falls back to the Google identity when none is present.
+  function loadShellUser() {
+    var nameEl = document.querySelector('.sidebar-footer .name');
+    var roleEl = document.querySelector('.sidebar-footer .role');
+    var navEl = document.getElementById('nav-username');
+    function setName(value) {
+      var text = value || '';
+      if (nameEl) nameEl.textContent = text || 'Usuário';
+      if (navEl) navEl.textContent = text;
+    }
+    var session = window.Auth && Auth.get();
+    if (session) {
+      setName(session.nome || session.username || session.email);
+      if (roleEl && session.role) roleEl.textContent = String(session.role);
+      return;
+    }
+    if (!window.Utils || typeof Utils.callServer !== 'function') return;
+    Utils.callServer('getCurrentUser').then(function(result) {
+      var email = (result && result.success && result.data) ? result.data.email : '';
+      if (email) setName(email);
+    }).catch(function() {});
+  }
+
+  // Navigate to the SearchResults view carrying the query string.
+  function goSearch(query) {
+    const q = String(query || '').trim();
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', 'index');
+    params.set('view', 'SearchResults');
+    if (q) { params.set('q', q); } else { params.delete('q'); }
+    window.location.search = params.toString();
+  }
+
+  // Human-friendly labels for each view (used by the navbar title).
+  const VIEW_LABELS = {
+    Dashboard: 'Dashboard',
+    TeamMembers: 'Equipe',
+    AddMember: 'Adicionar Membro',
+    EditMember: 'Editar Membro',
+    MemberProfile: 'Perfil do Membro',
+    NatalChart: 'Mapa Natal',
+    Profile: 'Meu Perfil',
+    ProductivityAnalysis: 'Produtividade',
+    CommunicationGuide: 'Guia de Comunicação',
+    TeamDynamics: 'Dinâmica da Equipe',
+    Compatibility: 'Compatibilidade',
+    ConflictResolutionPage: 'Resolução de Conflitos',
+    ProjectRoles: 'Papéis de Projeto',
+    Reports: 'Relatórios',
+    Analytics: 'Analytics',
+    Settings: 'Configurações',
+    Help: 'Ajuda',
+    SearchResults: 'Resultados da Busca',
+    Login: 'Entrar',
+    Register: 'Cadastro'
+  };
+
+  function currentView() {
+    const params = new URLSearchParams(window.location.search);
+    return (params.get('view') || 'Dashboard').replace(/[^a-zA-Z0-9_-]/g, '');
+  }
+
+  // Reflect the active view in the shell: navbar title + sidebar highlight.
+  function syncShellNavigation() {
+    const view = currentView();
+
+    const title = document.querySelector('.navbar .current-page');
+    if (title) title.textContent = VIEW_LABELS[view] || view;
+
+    const links = document.querySelectorAll('.sidebar-nav a');
+    links.forEach(function(link) {
+      const onclick = link.getAttribute('onclick') || '';
+      const match = onclick.match(/loadPage\('([^']+)'\)/);
+      link.classList.toggle('active', !!match && match[1] === view);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    if (!enforceAuth()) return;
+    syncShellNavigation();
+    loadShellUser();
+  });
+</script>
+
+<script>
+/* codex-school-community-ux-script: pequenos ajustes de contexto escolar */
+(function() {
+  if (window.__codexSchoolCommunityUx) return;
+  window.__codexSchoolCommunityUx = true;
+
+  function ready(fn) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true });
+    else fn();
+  }
+
+  function queryAll(scope, selector) {
+    var root = scope && scope.querySelectorAll ? scope : document;
+    var items = Array.prototype.slice.call(root.querySelectorAll(selector));
+    if (root.matches && root.matches(selector)) items.unshift(root);
+    return items;
+  }
+
+  function enhance(scope) {
+    queryAll(scope, 'form').forEach(function(form) {
+      if (!form.getAttribute('aria-label') && !form.getAttribute('aria-labelledby')) {
+        form.setAttribute('aria-label', 'Formulario da comunidade escolar');
+      }
+    });
+
+    queryAll(scope, 'input, select, textarea').forEach(function(field) {
+      if (!field.id && field.name) field.id = 'field-' + String(field.name).replace(/[^a-zA-Z0-9_-]/g, '-');
+      if (field.required && !field.getAttribute('aria-required')) field.setAttribute('aria-required', 'true');
+      if (!field.getAttribute('aria-label') && !field.getAttribute('aria-labelledby') && !(field.labels && field.labels.length)) {
+        field.setAttribute('aria-label', field.placeholder || field.name || field.id || 'Campo do formulario');
+      }
+      if (!field.getAttribute('autocomplete')) {
+        var type = (field.getAttribute('type') || '').toLowerCase();
+        var name = (field.getAttribute('name') || field.id || '').toLowerCase();
+        if (type === 'email' || name.indexOf('email') >= 0) field.setAttribute('autocomplete', 'email');
+        else if (name.indexOf('nome') >= 0 || name.indexOf('name') >= 0) field.setAttribute('autocomplete', 'name');
+        else if (name.indexOf('senha') >= 0 || name.indexOf('password') >= 0) field.setAttribute('autocomplete', 'current-password');
+      }
+    });
+
+    queryAll(scope, 'button:not([type])').forEach(function(button) {
+      button.setAttribute('type', 'button');
+    });
+  }
+
+  function updateConnectionStatus() {
+    var status = document.getElementById('connection-status');
+    if (!status) return;
+    var offline = navigator.onLine === false;
+    status.hidden = !offline;
+    status.textContent = offline
+      ? 'Sem conexao. As alteracoes serao retomadas quando a rede voltar.'
+      : '';
+  }
+
+  function observeDynamicViews() {
+    if (!window.MutationObserver || !document.body) return;
+    var observer = new MutationObserver(function(records) {
+      records.forEach(function(record) {
+        Array.prototype.forEach.call(record.addedNodes, function(node) {
+          if (node && node.nodeType === 1) enhance(node);
+        });
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  ready(function() {
+    document.documentElement.setAttribute('data-community-context', 'school');
+    enhance(document);
+    updateConnectionStatus();
+    observeDynamicViews();
+  });
+
+  window.addEventListener('online', updateConnectionStatus);
+  window.addEventListener('offline', updateConnectionStatus);
+  window.CodexFrontend = Object.assign(window.CodexFrontend || {}, {
+    enhance: enhance,
+    updateConnectionStatus: updateConnectionStatus
+  });
+})();
+</script>
+
+<script>
+/* codex-project-behavior-standardization: microcomportamentos compartilhados */
+(function() {
+  if (window.__codexProjectBehaviorStandardization) return;
+  window.__codexProjectBehaviorStandardization = true;
+
+  var SUBMIT_LOCK_MS = 2500;
+  var invalidFocusPending = false;
+
+  function isElement(value) {
+    return value && value.nodeType === 1;
+  }
+
+  function prefersReducedMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function unlockForm(form, button) {
+    if (isElement(form)) {
+      delete form.dataset.codexSubmitting;
+      if (form.getAttribute('aria-busy') === 'true') form.setAttribute('aria-busy', 'false');
+    }
+
+    if (isElement(button) && button.dataset.codexSubmitLocked === 'true') {
+      delete button.dataset.codexSubmitLocked;
+      button.disabled = false;
+      button.removeAttribute('aria-disabled');
+    }
+  }
+
+  function restoreSubmitLocks(scope) {
+    var root = scope && scope.querySelectorAll ? scope : document;
+
+    root.querySelectorAll('form[data-codex-submitting="true"]').forEach(function(form) {
+      unlockForm(form);
+    });
+
+    root.querySelectorAll('[data-codex-submit-locked="true"]').forEach(function(button) {
+      unlockForm(null, button);
+    });
+  }
+
+  document.addEventListener('submit', function(event) {
+    var form = event.target;
+    if (!isElement(form) || String(form.tagName).toLowerCase() !== 'form') return;
+    if (form.hasAttribute('data-no-submit-lock')) return;
+
+    if (form.dataset.codexSubmitting === 'true') {
+      event.preventDefault();
+      return;
+    }
+
+    if (typeof form.checkValidity === 'function' && !form.checkValidity()) return;
+
+    form.dataset.codexSubmitting = 'true';
+    form.setAttribute('aria-busy', 'true');
+
+    var button = event.submitter || form.querySelector('button[type="submit"], input[type="submit"], button:not([type])');
+    if (isElement(button) && !button.disabled && !button.hasAttribute('data-no-submit-lock')) {
+      button.dataset.codexSubmitLocked = 'true';
+      button.disabled = true;
+      button.setAttribute('aria-disabled', 'true');
+    }
+
+    window.setTimeout(function() {
+      unlockForm(form, button);
+    }, SUBMIT_LOCK_MS);
+  }, true);
+
+  document.addEventListener('invalid', function(event) {
+    var field = event.target;
+    if (!isElement(field) || invalidFocusPending) return;
+    invalidFocusPending = true;
+
+    window.setTimeout(function() {
+      invalidFocusPending = false;
+      if (!document.documentElement.contains(field)) return;
+      try {
+        field.scrollIntoView({ block: 'center', inline: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+        field.focus({ preventScroll: true });
+      } catch (error) {
+        field.focus();
+      }
+    }, 0);
+  }, true);
+
+  document.addEventListener('keydown', function(event) {
+    if (event.key !== 'Escape') return;
+    var closedSomething = false;
+
+    var dialogs = Array.prototype.slice.call(document.querySelectorAll('dialog[open]'));
+    var dialog = dialogs[dialogs.length - 1];
+    if (dialog && typeof dialog.close === 'function') {
+      dialog.close();
+      closedSomething = true;
+    }
+
+    if (!closedSomething) {
+      var details = Array.prototype.slice.call(document.querySelectorAll('details[open]'));
+      var detail = details[details.length - 1];
+      if (detail) {
+        detail.removeAttribute('open');
+        closedSomething = true;
+      }
+    }
+
+    document.querySelectorAll('[aria-expanded="true"]').forEach(function(toggle) {
+      toggle.setAttribute('aria-expanded', 'false');
+      closedSomething = true;
+    });
+
+    if (closedSomething) event.preventDefault();
+  }, true);
+
+  window.addEventListener('pageshow', function() {
+    restoreSubmitLocks(document);
+  });
+
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') restoreSubmitLocks(document);
+  });
+})();
+</script>
+
+<script>
+(function() {
+  var STORAGE_KEY = 'codex.preferredTheme';
+
+  function applyTheme(theme) {
+    var next = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    if (document.body) document.body.setAttribute('data-theme', next);
+    var btn = document.getElementById('codex-theme-toggle');
+    if (btn) {
+      var icon = btn.querySelector('.codex-theme-toggle__icon');
+      var label = btn.querySelector('.codex-theme-toggle__label');
+      if (icon) icon.textContent = next === 'light' ? '☀️' : '🌙';
+      if (label) label.textContent = next === 'light' ? 'Claro' : 'Escuro';
+      btn.setAttribute('aria-pressed', next === 'light' ? 'true' : 'false');
+      btn.setAttribute('title', next === 'light' ? 'Usar tema escuro' : 'Usar tema claro');
+    }
+  }
+
+  function preferredTheme() {
+    try {
+      return localStorage.getItem(STORAGE_KEY) || 'dark';
+    } catch (e) {
+      return 'dark';
+    }
+  }
+
+  function saveTheme(theme) {
+    try {
+      localStorage.setItem(STORAGE_KEY, theme);
+    } catch (e) {}
+  }
+
+  function integrateButton(btn) {
+    var target = document.querySelector('.header-actions, .topbar-actions, .navbar-actions, .nav-actions, header .actions, nav .actions, .app-header, .topbar, .navbar, header, nav');
+    if (target && !target.contains(btn)) {
+      target.appendChild(btn);
+      btn.classList.add('is-integrated');
+    }
+  }
+
+  function initThemeToggle() {
+    var btn = document.getElementById('codex-theme-toggle');
+    if (!btn) return;
+    applyTheme(preferredTheme());
+    integrateButton(btn);
+    btn.addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme') || 'dark';
+      var next = current === 'light' ? 'dark' : 'light';
+      saveTheme(next);
+      applyTheme(next);
+      integrateButton(btn);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initThemeToggle);
+  } else {
+    initThemeToggle();
+  }
+})();
+</script>
+
+
+
